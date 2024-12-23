@@ -9,7 +9,7 @@ public class DoubleValue implements InlineValue<Double> {
     public boolean matches(final @NotNull String text) {
         if (!text.endsWith("D")) return false;
 
-        final String other = text.replaceAll("D", "");
+        final String other = text.substring(0, text.length() - 1);
         try {
             Double.valueOf(other);
             return true;
@@ -21,7 +21,7 @@ public class DoubleValue implements InlineValue<Double> {
     @Override
     public @Nullable Double deserialize(final @NotNull String text) {
         try {
-            return Double.valueOf(text.replaceAll("D", ""));
+            return Double.valueOf(text.substring(0, text.length() - 1));
         } catch (NumberFormatException e) {
             return -1.0;
         }

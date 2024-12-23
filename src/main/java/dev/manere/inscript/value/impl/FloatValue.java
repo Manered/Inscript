@@ -9,7 +9,7 @@ public class FloatValue implements InlineValue<Float> {
     public boolean matches(final @NotNull String text) {
         if (!text.endsWith("F")) return false;
 
-        final String other = text.replaceAll("F", "");
+        final String other = text.substring(0, text.length() - 1);
         try {
             Float.valueOf(other);
             return true;
@@ -21,7 +21,7 @@ public class FloatValue implements InlineValue<Float> {
     @Override
     public @Nullable Float deserialize(final @NotNull String text) {
         try {
-            return Float.valueOf(text.replaceAll("F", ""));
+            return Float.valueOf(text.substring(0, text.length() - 1));
         } catch (NumberFormatException e) {
             return -1.0F;
         }

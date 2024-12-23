@@ -1,0 +1,7 @@
+jdk:
+  - openjdk21
+before-install:
+  - sdk install java 21.0.5-graal
+  - sdk use java 21.0.5-graal
+  - sdk install gradle 8.9
+  - sdk use gradle 8.9

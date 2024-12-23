@@ -12,7 +12,7 @@ public class CharacterValue implements InlineValue<Character> {
 
     @Override
     public @Nullable Character deserialize(final @NotNull String text) {
-        return text.substring(1).replaceAll("'C", "").charAt(0);
+        return text.substring(1, text.length() - 2).charAt(0);
     }
 
     @Override

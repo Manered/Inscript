@@ -9,7 +9,7 @@ public class ShortValue implements InlineValue<Short> {
     public boolean matches(final @NotNull String text) {
         if (!text.endsWith("S")) return false;
 
-        final String other = text.replaceAll("S", "");
+        final String other = text.substring(0, text.length() - 1);
         try {
             Short.valueOf(other);
             return true;
@@ -20,7 +20,7 @@ public class ShortValue implements InlineValue<Short> {
 
     @Override
     public @Nullable Short deserialize(final @NotNull String text) {
-        return Short.valueOf(text.replaceAll("S", ""));
+        return Short.valueOf(text.substring(0, text.length() - 1));
     }
 
     @Override

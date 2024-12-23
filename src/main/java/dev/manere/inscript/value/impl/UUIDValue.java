@@ -14,7 +14,7 @@ public class UUIDValue implements InlineValue<UUID> {
         }
 
         try {
-            UUID.fromString(text.replaceAll("uuid\\(", "").replaceAll("\\)", ""));
+            UUID.fromString(text.substring(5, text.length() - 1));
             return true;
         } catch (final Exception e) {
             return false;
@@ -24,7 +24,7 @@ public class UUIDValue implements InlineValue<UUID> {
     @Override
     public @Nullable UUID deserialize(final @NotNull String text) {
         try {
-            return UUID.fromString(text.replaceAll("uuid\\(", "").replaceAll("\\)", ""));
+            return UUID.fromString(text.substring(5, text.length() - 1));
         } catch (final Exception e) {
             return null;
         }

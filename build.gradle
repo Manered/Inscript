@@ -10,8 +10,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains:annotations:24.0.0")
-    annotationProcessor("org.jetbrains:annotations:24.0.0")
-
+    implementation('org.jetbrains:annotations:24.0.0')
+    annotationProcessor('org.jetbrains:annotations:24.0.0')
     implementation('com.google.errorprone:error_prone_annotations:2.36.0')
+    annotationProcessor('com.google.errorprone:error_prone_annotations:2.36.0')
 }

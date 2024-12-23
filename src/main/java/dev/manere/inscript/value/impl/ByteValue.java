@@ -9,7 +9,7 @@ public class ByteValue implements InlineValue<Byte> {
     public boolean matches(final @NotNull String text) {
         if (!text.endsWith("B")) return false;
 
-        final String other = text.replaceAll("B", "");
+        final String other = text.substring(0, text.length() - 1);
         try {
             Byte.valueOf(other);
             return true;
@@ -20,7 +20,7 @@ public class ByteValue implements InlineValue<Byte> {
 
     @Override
     public @Nullable Byte deserialize(final @NotNull String text) {
-        return Byte.valueOf(text.replaceAll("B", ""));
+        return Byte.valueOf(text.substring(0, text.length() - 1));
     }
 
     @Override
