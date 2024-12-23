@@ -9,7 +9,9 @@ import java.util.UUID;
 public class UUIDValue implements InlineValue<UUID> {
     @Override
     public boolean matches(final @NotNull String text) {
-        if (!text.startsWith("uuid(") && !text.endsWith(")")) return false;
+        if (!text.startsWith("uuid(") && !text.endsWith(")")) {
+            return false;
+        }
 
         try {
             UUID.fromString(text.replaceAll("uuid\\(", "").replaceAll("\\)", ""));

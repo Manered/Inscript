@@ -5,32 +5,34 @@ import dev.manere.inscript.value.impl.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ValueRegistry {
-    public static final ValueRegistry REGISTRY = new ValueRegistry()
-        .register(Boolean.class, new BooleanValue())
+    public static final ValueRegistry REGISTRY;
 
-        .register(Byte.class, new ByteValue())
-        .register(Short.class, new ShortValue())
+    static {
+        REGISTRY = new ValueRegistry()
+            .register(Boolean.class, new BooleanValue())
+            .register(Byte.class, new ByteValue())
+            .register(Short.class, new ShortValue())
+            .register(Integer.class, new IntegerValue())
+            .register(Double.class, new DoubleValue())
+            .register(Float.class, new FloatValue())
+            .register(Long.class, new LongValue())
+            .register(UUID.class, new UUIDValue())
+            .register(Character.class, new CharacterValue());
 
-        .register(Integer.class, new IntegerValue())
-        .register(Double.class, new DoubleValue())
-        .register(Float.class, new FloatValue())
-        .register(Long.class, new LongValue())
-
-        .register(UUID.class, new UUIDValue())
-
-        .register(Character.class, new CharacterValue())
-        .register(String.class, new StringValue());
+        // Ensure String is always registered last.
+        REGISTRY.register(String.class, new StringValue());
+    }
 
     private ValueRegistry() {}
 
-    private final Map<Class<?>, InlineValue<?>> inlineRegistry = new ConcurrentHashMap<>();
-    private final Map<Class<?>, InscriptValue<?>> inscriptRegistry = new ConcurrentHashMap<>();
+    private final Map<Class<?>, InlineValue<?>> inlineRegistry = new LinkedHashMap<>();
+    private final Map<Class<?>, InscriptValue<?>> inscriptRegistry = new LinkedHashMap<>();
 
     @NotNull
     public <T> Optional<InlineValue<T>> getInline(final @NotNull Class<? extends T> ignoredKey) {
@@ -73,12 +75,12 @@ public class ValueRegistry {
     @NotNull
     @Unmodifiable
     public Map<Class<?>, InlineValue<?>> getInlineRegistry() {
-        return Map.copyOf(inlineRegistry);
+        return new LinkedHashMap<>(inlineRegistry);
     }
 
     @NotNull
     @Unmodifiable
     public Map<Class<?>, InscriptValue<?>> getInscriptRegistry() {
-        return Map.copyOf(inscriptRegistry);
+        return new LinkedHashMap<>(inscriptRegistry);
     }
 }

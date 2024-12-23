@@ -95,16 +95,16 @@ public class Inscript {
                 writeNode(writer, child, depth + 1);
             }
 
-            writer.write(indent + InscriptConstants.SECTION_END + "\n");
+            writer.write(indent + InscriptConstants.SECTION_END.get() + "\n");
         } else if (node instanceof ScalarNode<?> scalar) {
             final Object objectValue = scalar.getValue();
             final Class<?> type = objectValue.getClass();
 
             if (objectValue instanceof List<?> list) {
                 if (list.isEmpty()) {
-                    writer.write(indent + key + " = " + InscriptConstants.LIST_START + InscriptConstants.LIST_END);
+                    writer.write(indent + key + " = " + InscriptConstants.LIST_START.get() + InscriptConstants.LIST_END.get());
                 } else {
-                    writer.write(indent + key + " = " + InscriptConstants.LIST_START + "\n");
+                    writer.write(indent + key + " = " + InscriptConstants.LIST_START.get() + "\n");
 
                     for (int i = 0; i < list.size(); i++) {
                         final Object element = list.get(i);
@@ -127,7 +127,7 @@ public class Inscript {
                         break;
                     }
 
-                    writer.write(indent + InscriptConstants.LIST_END + "\n");
+                    writer.write(indent + InscriptConstants.LIST_END.get() + "\n");
                 }
             } else {
                 final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(type).orElse(null);
@@ -194,8 +194,8 @@ public class Inscript {
         final String name = parts[0].trim();
 
         final String key = name
-            .replaceAll(InscriptConstants.SECTION_START.get(), "")
-            .replaceAll(InscriptConstants.SECTION_END.get(), "")
+            .replace(InscriptConstants.SECTION_START.get(), "")
+            .replace(InscriptConstants.SECTION_END.get(), "")
             .trim();
 
         if (parts.length == 1) {
@@ -270,6 +270,8 @@ public class Inscript {
                 InlineValue<?> inlineMatched = new StringValue();
 
                 for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
+                    if (inline.equals(new StringValue())) continue;
+
                     if (inline.matches(value)) {
                         inlineMatched = inline;
                         break;
@@ -297,6 +299,8 @@ public class Inscript {
         InlineValue<?> inlineMatched = new StringValue();
 
         for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
+            if (inline.equals(new StringValue())) continue;
+
             if (inline.matches(value)) {
                 inlineMatched = inline;
                 break;
