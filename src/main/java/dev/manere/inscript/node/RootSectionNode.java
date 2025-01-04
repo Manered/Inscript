@@ -21,4 +21,9 @@ public class RootSectionNode extends SectionNode {
     public Set<InscriptNode> getChildren() {
         return nodes;
     }
+
+    @Override
+    public @NotNull String toString() {
+        return getKey() + "[children = " + getChildren() + "]";
+    }
 }

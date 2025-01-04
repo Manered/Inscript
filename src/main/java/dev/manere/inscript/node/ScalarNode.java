@@ -20,6 +20,6 @@ public abstract class ScalarNode<V> extends InscriptNode {
     @NotNull
     @Override
     public String toString() {
-        return getKey() + "[value=" + getValue() + "]";
+        return getKey() + "[value = " + getValue() + ", comments = " + getComments() + "]";
     }
 }

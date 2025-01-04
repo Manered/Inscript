@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'dev.manere.inscript'
-version = '1.0.1'
+version = '1.0.2'
 
 repositories {
     mavenCentral()
@@ -14,4 +14,10 @@ dependencies {
     annotationProcessor('org.jetbrains:annotations:24.0.0')
     implementation('com.google.errorprone:error_prone_annotations:2.36.0')
     annotationProcessor('com.google.errorprone:error_prone_annotations:2.36.0')
+}
+
+jar {
+    manifest {
+        attributes('Implementation-Version': project.version)
+    }
 }

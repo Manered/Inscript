@@ -92,6 +92,11 @@ public class Inscript {
         final String key = node.getKey();
 
         if (node instanceof SectionNode section) {
+            for (final String comment : section.getComments()) {
+                writer.write(InscriptConstants.COMMENT_START.get() + " " + comment);
+                writer.newLine();
+            }
+
             if (section.getChildren().isEmpty()) {
                 writer.write(indent + key + " " + InscriptConstants.SECTION_START.get() + InscriptConstants.SECTION_END.get());
                 return;
@@ -105,6 +110,11 @@ public class Inscript {
 
             writer.write(indent + InscriptConstants.SECTION_END.get() + "\n");
         } else if (node instanceof ScalarNode<?> scalar) {
+            for (final String comment : scalar.getComments()) {
+                writer.write(InscriptConstants.COMMENT_START.get() + " " + comment);
+                writer.newLine();
+            }
+
             final Object objectValue = scalar.getValue();
             final Class<?> type = objectValue.getClass();
 
@@ -159,12 +169,13 @@ public class Inscript {
         try (final BufferedReader reader = Files.newBufferedReader(getPath().get())) {
             getEditor().reset();
 
+            final Set<String> tempComments = new HashSet<>();
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-                final InscriptNode node = parseNode(line, reader, 0);
+                final InscriptNode node = parseNode(line, reader, 0, tempComments);
                 if (node != null) getEditor().getSection().getChildren().add(node);
             }
         } catch (final Exception e) {
@@ -176,26 +187,32 @@ public class Inscript {
         try (final BufferedReader reader = new BufferedReader(new StringReader(configString))) {
             getEditor().reset();
 
+            final Set<String> tempComments = new HashSet<>();
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-                final InscriptNode node = parseNode(line, reader, 0);
+                final InscriptNode node = parseNode(line, reader, 0, tempComments);
                 if (node != null) getEditor().getSection().getChildren().add(node);
             }
         } catch (final IOException e) {
-            throw new RuntimeException(e);
+            throw new InscriptError(e);
         }
     }
 
     @Nullable
     @ApiStatus.Internal
-    private InscriptNode parseNode(@NotNull String line, final @NotNull BufferedReader reader, final int depth) throws IOException {
+    private InscriptNode parseNode(@NotNull String line, final @NotNull BufferedReader reader, final int depth, final @NotNull Set<String> tempComments) throws IOException {
         final String indent = InscriptConstants.INDENT.get().apply(depth);
         if (!line.startsWith(indent)) return null;
 
         line = line.substring(indent.length());
+
+        if (line.startsWith(InscriptConstants.COMMENT_START.get())) {
+            tempComments.add(line.substring(InscriptConstants.COMMENT_START.get().length()).trim());
+            return null;
+        }
 
         final String[] parts = line.split("=", 2);
         final String name = parts[0].trim();
@@ -225,15 +242,19 @@ public class Inscript {
 
                 String childLine;
                 while ((childLine = reader.readLine()) != null && !childLine.trim().equals(InscriptConstants.SECTION_END.get())) {
-                    final InscriptNode childNode = parseNode(childLine, reader, depth + 1);
+                    final InscriptNode childNode = parseNode(childLine, reader, depth + 1, new HashSet<>());
                     if (childNode != null) {
                         section.getChildren().add(childNode);
                     }
                 }
 
+                System.out.println(1);
+                section.getComments().addAll(tempComments);
+                tempComments.clear();
+
                 return section;
             } else if (line.endsWith(InscriptConstants.SECTION_START.get() + InscriptConstants.SECTION_END.get())) {
-                return new SectionNode() {
+                final SectionNode node = new SectionNode() {
                     private final Set<InscriptNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
                     @NotNull
@@ -248,6 +269,12 @@ public class Inscript {
                         return key;
                     }
                 };
+
+                System.out.println(2);
+                node.getComments().addAll(tempComments);
+                tempComments.clear();
+
+                return node;
             }
 
             return null;
@@ -255,12 +282,11 @@ public class Inscript {
 
         final String value = parts[1].trim();
 
-        if (value.startsWith(InscriptConstants.SECTION_START.get())) {
+        if (value.startsWith(InscriptConstants.LIST_START.get())) {
             final List<Object> list = new ArrayList<>();
             final StringBuilder listContent = new StringBuilder(value);
 
-            // Read until we find the closing bracket
-            while (!listContent.toString().trim().endsWith(InscriptConstants.SECTION_END.get())) {
+            while (!listContent.toString().trim().endsWith(InscriptConstants.LIST_END.get())) {
                 String nextLine = reader.readLine();
                 if (nextLine != null) {
                     listContent.append(nextLine.trim());
@@ -290,7 +316,7 @@ public class Inscript {
                 }
             }
 
-            return new ScalarNode<>() {
+            final ScalarNode<?> node = new ScalarNode<>() {
                 @Override
                 public @NotNull String getKey() {
                     return key;
@@ -301,6 +327,13 @@ public class Inscript {
                     return Collections.synchronizedList(list);
                 }
             };
+
+
+            System.out.println(3);
+            node.getComments().addAll(tempComments);
+            tempComments.clear();
+
+            return node;
         }
 
         InlineValue<?> inlineMatched = new StringValue();
@@ -317,7 +350,7 @@ public class Inscript {
         final Object o = inlineMatched.deserialize(value);
         if (o == null) return null;
 
-        return new ScalarNode<>() {
+        final ScalarNode<?> node = new ScalarNode<>() {
             @Override
             public @NotNull String getKey() {
                 return key;
@@ -328,5 +361,12 @@ public class Inscript {
                 return o;
             }
         };
+
+        System.out.println(4);
+
+        node.getComments().addAll(tempComments);
+        tempComments.clear();
+
+        return node;
     }
 }

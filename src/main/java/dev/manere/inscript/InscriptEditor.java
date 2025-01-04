@@ -15,7 +15,9 @@ import java.util.function.Consumer;
 public interface InscriptEditor {
     @NotNull
     @Unmodifiable
-    Set<InscriptNode> getChildren();
+    default Set<InscriptNode> getChildren() {
+        return Set.copyOf(getSection().getChildren());
+    }
 
     @NotNull
     @Unmodifiable
@@ -127,5 +129,30 @@ public interface InscriptEditor {
         }
 
         return this;
+    }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default InscriptEditor setComments(final @NotNull String key, final @NotNull Collection<? extends String> comments) {
+        getNode(key).ifPresent(node -> {
+            node.getComments().clear();
+            node.getComments().addAll(comments);
+        });
+
+        return this;
+    }
+
+    @NotNull
+    default Collection<String> getComments(final @NotNull String key) {
+        final InscriptNode node = getNode(key).orElse(null);
+        if (node == null) return Set.of();
+
+        return Set.copyOf(node.getComments());
+    }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default InscriptEditor setComments(final @NotNull String key, final @NotNull String @NotNull ... comments) {
+        return setComments(key, Arrays.asList(comments));
     }
 }

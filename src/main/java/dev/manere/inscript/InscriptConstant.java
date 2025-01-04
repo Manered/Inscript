@@ -21,4 +21,10 @@ public class InscriptConstant<T> {
     public T get() {
         return value;
     }
+
+    @NotNull
+    @Override
+    public String toString() {
+        return get().toString();
+    }
 }

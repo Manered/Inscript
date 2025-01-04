@@ -12,6 +12,6 @@ public abstract class SectionNode extends InscriptNode {
     @NotNull
     @Override
     public String toString() {
-        return getKey() + "[children=" + getChildren() + "]";
+        return getKey() + "[comments = " + getComments() + ", children = " + getChildren() + "]";
     }
 }

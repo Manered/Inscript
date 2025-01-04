@@ -14,11 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public record SimpleInscriptEditor(@NotNull SectionNode sectionNode) implements InscriptEditor {
     @Override
-    public @NotNull @Unmodifiable Set<InscriptNode> getChildren() {
-        return Set.copyOf(sectionNode.getChildren());
-    }
-
-    @Override
     public @NotNull SectionNode getSection() {
         return sectionNode;
     }
