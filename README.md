@@ -2,18 +2,19 @@
 A simple, easy and very configurable configuration language.
 ---
 ## Default Data Types:
-| Data Type | Java      | Usage Example                                |
-|-----------|-----------|----------------------------------------------|
-| String    | String    | `'Hello'`, `"Hello"`, `Hello`                |
-| Boolean   | Boolean   | `True`, `False`, `true`, `false`             |
-| Byte      | Byte      | `13B`                                        |
-| Short     | Short     | `255S`                                       |
-| Integer   | Integer   | `100`                                        |
-| Double    | Double    | `10.5D`                                      |
-| Float     | Float     | `10.00F`                                     |
-| Long      | Long      | `100000L`                                    |
-| Character | Character | `'A'C`                                       |
-| UUID      | UUID      | `uuid(4ad4c78c-d4a4-4d25-91cf-4f001efc46c0)` |
+| Data Type  | Java                 | Usage Example                                |
+|------------|----------------------|----------------------------------------------|
+| String     | String               | `'Hello'`, `"Hello"`, `Hello`                |
+| Boolean    | Boolean              | `True`, `False`, `true`, `false`             |
+| Byte       | Byte                 | `13B`                                        |
+| Short      | Short                | `255S`                                       |
+| Integer    | Integer              | `100`                                        |
+| Double     | Double               | `10.5D`                                      |
+| Float      | Float                | `10.00F`                                     |
+| Long       | Long                 | `100000L`                                    |
+| Character  | Character            | `'A'C`                                       |
+| UUID       | UUID                 | `uuid(4ad4c78c-d4a4-4d25-91cf-4f001efc46c0)` |
+| Byte Array | byte[] (Uses Base64) | `base64(base64ValueHere...)`      |
 ---
 ## Custom Data Types
 You can register your own data types and also a custom section parser
