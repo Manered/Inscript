@@ -248,7 +248,6 @@ public class Inscript {
                     }
                 }
 
-                System.out.println(1);
                 section.getComments().addAll(tempComments);
                 tempComments.clear();
 
@@ -270,7 +269,6 @@ public class Inscript {
                     }
                 };
 
-                System.out.println(2);
                 node.getComments().addAll(tempComments);
                 tempComments.clear();
 
@@ -328,8 +326,6 @@ public class Inscript {
                 }
             };
 
-
-            System.out.println(3);
             node.getComments().addAll(tempComments);
             tempComments.clear();
 
@@ -361,8 +357,6 @@ public class Inscript {
                 return o;
             }
         };
-
-        System.out.println(4);
 
         node.getComments().addAll(tempComments);
         tempComments.clear();
