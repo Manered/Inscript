@@ -52,8 +52,16 @@ public class Inscript {
     }
 
     public void saveToDisk() {
-        if (!getPath().orElseThrow(() -> new InscriptError("Attempted to save to disk with a null path")).toFile().exists()) {
-            throw new InscriptError("Failed to save Inscript - file not found");
+        if (getPath().isEmpty()) {
+            throw new InscriptError("Attempted to save to disk with a null path");
+        }
+
+        final File file = getPath().get().toFile();
+
+        if (!file.exists()) try {
+            if (!file.createNewFile()) throw new InscriptError("Failed to save " + file + " to disk, couldn't create file.");
+        } catch (final IOException e) {
+            throw new InscriptError(e);
         }
 
         try (final BufferedWriter writer = Files.newBufferedWriter(getPath().get())) {
@@ -145,9 +153,8 @@ public class Inscript {
     }
 
     public void loadFromDisk() {
-        if (!getPath().orElseThrow(() -> new InscriptError("Attempted to load from disk with a null path")).toFile().exists()) {
-            throw new InscriptError("Failed to load Inscript - file not found");
-        }
+        if (getPath().isEmpty()) throw new InscriptError("Attempted to load from disk with a null path");
+        if (!getPath().get().toFile().exists()) return;
 
         try (final BufferedReader reader = Files.newBufferedReader(getPath().get())) {
             getEditor().reset();

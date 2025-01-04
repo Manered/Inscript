@@ -94,4 +94,38 @@ public interface InscriptEditor {
         getSection().getChildren().clear();
         return this;
     }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default InscriptEditor forEachSection(final @NotNull Consumer<InscriptEditor> sectionConsumer) {
+        for (final InscriptNode node : getSection().getChildren()) {
+            getSection(node.getKey()).ifPresent(sectionConsumer);
+        }
+
+        return this;
+    }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default InscriptEditor forEachScalar(final @NotNull Consumer<ScalarNode<?>> scalarConsumer) {
+        for (final InscriptNode node : getSection().getChildren()) {
+            if (node instanceof ScalarNode<?> scalar) scalarConsumer.accept(scalar);
+        }
+
+        return this;
+    }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default InscriptEditor forEach(final @NotNull Consumer<ScalarNode<?>> scalarConsumer, final @NotNull Consumer<InscriptEditor> sectionConsumer) {
+        for (final InscriptNode node : getSection().getChildren()) {
+            if (node instanceof ScalarNode<?> scalar) {
+                scalarConsumer.accept(scalar);
+            } else if (node instanceof SectionNode section) {
+                sectionConsumer.accept(new SimpleInscriptEditor(section));
+            }
+        }
+
+        return this;
+    }
 }

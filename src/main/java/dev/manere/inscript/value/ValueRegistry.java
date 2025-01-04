@@ -15,6 +15,7 @@ public class ValueRegistry {
 
     static {
         REGISTRY = new ValueRegistry()
+            .register(byte[].class, new ByteArrayValue())
             .register(Boolean.class, new BooleanValue())
             .register(Byte.class, new ByteValue())
             .register(Short.class, new ShortValue())
@@ -25,7 +26,6 @@ public class ValueRegistry {
             .register(UUID.class, new UUIDValue())
             .register(Character.class, new CharacterValue());
 
-        // Ensure String is always registered last.
         REGISTRY.register(String.class, new StringValue());
     }
 
