@@ -25,8 +25,10 @@ After that, we can register a simple data type:
 ```java
 registry.register(BigDecimal.class, InlineValue.<BigDecimal>builder()
   .matches(text -> {
+    if (!text.startsWith("bigDecimal(") && !text.endsWith(")")) return false;
+
     try {
-      new BigDecimal(text);
+      new BigDecimal(text.substring(11, text.length() - 1);
       return true;
     } catch (final Exception e) {
       return false;
