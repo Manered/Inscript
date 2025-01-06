@@ -195,7 +195,8 @@ final ConfigSection root = inscript.getRoot();
 ### Miscellaneous
 By default, Inscript does not run anything asynchronously for you.
 
-> ![CAUTION]
+> [!Caution]
+> 
 > Any loading and saving operations from Inscript **should be run asynchronously**.
 > 
 > Make sure to run the string based methods (not the disk ones) asynchronously as well.
