@@ -1,7 +1,7 @@
 package dev.manere.inscript.value;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import dev.manere.inscript.InscriptEditor;
+import dev.manere.inscript.ConfigSection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -10,23 +10,23 @@ import java.util.function.Function;
 
 public interface InscriptValue<T> {
     @Nullable
-    T deserialize(final @NotNull InscriptEditor section);
+    T deserialize(final @NotNull ConfigSection section);
 
-    void serialize(final @NotNull T t, final @NotNull InscriptEditor section);
+    void serialize(final @NotNull T t, final @NotNull ConfigSection section);
 
     @NotNull
     static <T> InscriptValue<T> create(
-        final @NotNull Function<@NotNull InscriptEditor, @Nullable T> deserialize,
-        final @NotNull BiConsumer<@NotNull T, @NotNull InscriptEditor> serialize
+        final @NotNull Function<@NotNull ConfigSection, @Nullable T> deserialize,
+        final @NotNull BiConsumer<@NotNull T, @NotNull ConfigSection> serialize
     ) {
         return new InscriptValue<>() {
             @Override
-            public @Nullable T deserialize(@NotNull InscriptEditor section) {
+            public @Nullable T deserialize(@NotNull ConfigSection section) {
                 return deserialize.apply(section);
             }
 
             @Override
-            public void serialize(@NotNull T t, @NotNull InscriptEditor section) {
+            public void serialize(@NotNull T t, @NotNull ConfigSection section) {
                 serialize.accept(t, section);
             }
         };
@@ -39,29 +39,29 @@ public interface InscriptValue<T> {
     }
 
     class Builder<T> {
-        private Function<@NotNull InscriptEditor, @Nullable T> deserialize;
-        private BiConsumer<@NotNull T, @NotNull InscriptEditor> serialize;
+        private Function<@NotNull ConfigSection, @Nullable T> deserialize;
+        private BiConsumer<@NotNull T, @NotNull ConfigSection> serialize;
 
         @NotNull
-        public Function<@NotNull InscriptEditor,T> deserialize() {
+        public Function<@NotNull ConfigSection,T> deserialize() {
             return deserialize;
         }
 
         @NotNull
         @CanIgnoreReturnValue
-        public Builder<T> deserialize(final @NotNull Function<@NotNull InscriptEditor,T> deserialize) {
+        public Builder<T> deserialize(final @NotNull Function<@NotNull ConfigSection, T> deserialize) {
             this.deserialize = deserialize;
             return this;
         }
 
         @NotNull
-        public BiConsumer<T, @NotNull InscriptEditor> serialize() {
+        public BiConsumer<T, @NotNull ConfigSection> serialize() {
             return serialize;
         }
 
         @NotNull
         @CanIgnoreReturnValue
-        public Builder<T> serialize(final @NotNull BiConsumer<T, @NotNull InscriptEditor> serialize) {
+        public Builder<T> serialize(final @NotNull BiConsumer<T, @NotNull ConfigSection> serialize) {
             this.serialize = serialize;
             return this;
         }

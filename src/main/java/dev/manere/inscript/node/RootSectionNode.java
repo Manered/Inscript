@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RootSectionNode extends SectionNode {
-    private final Set<InscriptNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<ConfigNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     @NotNull
     @Override
@@ -18,7 +18,7 @@ public class RootSectionNode extends SectionNode {
 
     @NotNull
     @Override
-    public Set<InscriptNode> getChildren() {
+    public Set<ConfigNode> getChildren() {
         return nodes;
     }
 

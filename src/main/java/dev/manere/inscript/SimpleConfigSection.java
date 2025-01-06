@@ -1,41 +1,40 @@
 package dev.manere.inscript;
 
-import dev.manere.inscript.node.InscriptNode;
+import dev.manere.inscript.node.ConfigNode;
 import dev.manere.inscript.node.ScalarNode;
 import dev.manere.inscript.node.SectionNode;
 import dev.manere.inscript.value.InscriptValue;
 import dev.manere.inscript.value.ValueRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public record SimpleInscriptEditor(@NotNull SectionNode sectionNode) implements InscriptEditor {
+public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements ConfigSection {
     @Override
     public @NotNull SectionNode getSection() {
         return sectionNode;
     }
 
     @Override
-    public @NotNull Optional<InscriptEditor> getSection(final @NotNull String key) {
-        final InscriptNode node = getNode(key).orElse(null);
-        return !(node instanceof SectionNode childSection) ? Optional.empty() : Optional.of(new SimpleInscriptEditor(childSection));
+    public @NotNull Optional<ConfigSection> getSection(final @NotNull String key) {
+        final ConfigNode node = getNode(key).orElse(null);
+        return !(node instanceof SectionNode childSection) ? Optional.empty() : Optional.of(new SimpleConfigSection(childSection));
     }
 
     @Override
-    public @NotNull InscriptEditor createSection(final @NotNull String key) {
+    public @NotNull ConfigSection createSection(final @NotNull String key) {
         if (key.equalsIgnoreCase(InscriptConstants.ROOT_SECTION_KEY.get())) throw new IllegalArgumentException("Illegal attempt to create a root section.");
 
-        final Optional<InscriptEditor> sectionFound = getSection(key);
+        final Optional<ConfigSection> sectionFound = getSection(key);
         if (sectionFound.isPresent()) return sectionFound.get();
 
         final SectionNode created = new SectionNode() {
-            private final Set<InscriptNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
+            private final Set<ConfigNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
             @NotNull
-            public Set<InscriptNode> getChildren() {
+            public Set<ConfigNode> getChildren() {
                 return nodes;
             }
 
@@ -46,12 +45,12 @@ public record SimpleInscriptEditor(@NotNull SectionNode sectionNode) implements 
         };
 
         getSection().getChildren().add(created);
-        return new SimpleInscriptEditor(created);
+        return new SimpleConfigSection(created);
     }
 
     @Override
     public @NotNull <T> Optional<T> get(final @NotNull String key, final @NotNull Class<? extends T> ignoredType) {
-        final InscriptNode node = getNode(key).orElse(null);
+        final ConfigNode node = getNode(key).orElse(null);
         if (node == null) return Optional.empty();
 
         if (node instanceof ScalarNode<?> scalar) {
@@ -67,7 +66,7 @@ public record SimpleInscriptEditor(@NotNull SectionNode sectionNode) implements 
         } else {
             try {
                 final Optional<InscriptValue<T>> found = ValueRegistry.REGISTRY.getInscript(ignoredType);
-                return found.map(t -> t.deserialize(new SimpleInscriptEditor((SectionNode) node)));
+                return found.map(t -> t.deserialize(new SimpleConfigSection((SectionNode) node)));
             } catch (final Exception e) {
                 return Optional.empty();
             }
@@ -76,7 +75,7 @@ public record SimpleInscriptEditor(@NotNull SectionNode sectionNode) implements 
 
     @Override
     public @NotNull <T> List<T> getList(final @NotNull String key, final @NotNull Class<? extends T> ignoredType) {
-        final InscriptNode node = getNode(key).orElse(null);
+        final ConfigNode node = getNode(key).orElse(null);
         if (node == null) return Collections.synchronizedList(new ArrayList<>());
         if (!(node instanceof ScalarNode<?> scalar)) return Collections.synchronizedList(new ArrayList<>());
 
@@ -88,7 +87,7 @@ public record SimpleInscriptEditor(@NotNull SectionNode sectionNode) implements 
     }
 
     @Override
-    public @NotNull <T> InscriptEditor set(final @NotNull String key, final @Nullable T value) {
+    public @NotNull <T> ConfigSection set(final @NotNull String key, final @Nullable T value) {
         unset(key);
         if (value == null) return this;
 

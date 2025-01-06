@@ -2,12 +2,11 @@ package dev.manere.inscript.node;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
 import java.util.Set;
 
-public abstract class SectionNode extends InscriptNode {
+public abstract class SectionNode extends ConfigNode {
     @NotNull
-    public abstract Set<InscriptNode> getChildren();
+    public abstract Set<ConfigNode> getChildren();
 
     @NotNull
     @Override

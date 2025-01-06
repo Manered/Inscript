@@ -67,7 +67,7 @@ public interface InlineValue<T> {
 
         @NotNull
         @CanIgnoreReturnValue
-        public Builder<T> deserialize(final @NotNull Function<@NotNull String,T> deserialize) {
+        public Builder<T> deserialize(final @NotNull Function<@NotNull String, T> deserialize) {
             this.deserialize = deserialize;
             return this;
         }

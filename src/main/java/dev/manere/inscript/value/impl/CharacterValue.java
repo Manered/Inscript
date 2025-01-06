@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Nullable;
 public class CharacterValue implements InlineValue<Character> {
     @Override
     public boolean matches(final @NotNull String text) {
-        return text.length() == 4 && (text.startsWith("'") || text.endsWith("'C"));
+        return text.length() == 4 && (text.startsWith("'") && text.endsWith("'C"));
     }
 
     @Override

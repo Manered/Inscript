@@ -1,5 +1,5 @@
 # Inscript
-A simple, easy and very configurable configuration language.
+A simple, easy configuration file library that supports multiple formats.
 ---
 ## Default Data Types:
 | Data Type  | Java                 | Usage Example                                |
@@ -14,7 +14,7 @@ A simple, easy and very configurable configuration language.
 | Long       | Long                 | `100000L`                                    |
 | Character  | Character            | `'A'C`                                       |
 | UUID       | UUID                 | `uuid(4ad4c78c-d4a4-4d25-91cf-4f001efc46c0)` |
-| Byte Array | byte[] (Uses Base64) | `base64(base64ValueHere...)`      |
+| Byte Array | byte[] (Uses Base64) | `base64(base64ValueHere...)`                 |
 ---
 ## Custom Data Types
 You can register your own data types and also a custom section parser
@@ -64,45 +64,147 @@ registry.register(Ticket.class, InscriptValue.<Ticket>builder()
 ```
 And we're done!
 ---
-## Configuring the language
-If you want to change stuff like defining a list, or just want to change the indent, you can refer to the InscriptConstants interface.
+## Inscript Constants
+If you want to change the default indent or the root section node key you can do that easily.
 ```java
-InscriptConstants.INDENT.set("  "::repeat);
+InscriptConstants.INDENT.set("    "::repeat);
+InscriptConstants.ROOT_SECTION_KEY.set("*");
 
-InscriptConstants.LIST_START.set("List(");
-InscriptConstants.LIST_END.set(")");
+InscriptConstants.VERSION.get().get().ifPresent((version) -> {
+    System.out.println("Running Inscript version `" + version + "`");
+});
 ```
 ---
 ## Using Inscript
-You can load/save contents from/to files, or just load/save contents from/to strings.
-If you want to use files, you have to provide a `Path` or a `File`.
+**By default, we offer 2 file format implementations:**
+1. YAML/YML (.yml) `FileFormats.YAML`
+2. DataScript (.ds) `FileFormats.DATASCRIPT`
+
+Inscript doesn't actually need a file to work. You can use it perfectly fine with just strings.
+
+### Getting a new Inscript instance:
 ```java
-final Path path = Path.of(/* ... */);
-final Inscript inscript = Inscript.newInscript(path);
+// Auto-detect the file format from the file's extension
+final Inscript autoDetect = Inscript.newInscript(Path.of("file.yml"));
+
+// Manually provide a file format
+final Inscript manual = Inscript.newInscript(FileFormats.DATASCRIPT, Path.of("file.ds"));
+
+// Can't use file I/O features, must use saveToString and loadFromString. You must specify the file format.
+final Inscript empty = Inscript.newInscript(FileFormats.YAML);
 ```
-If you want to use the latter, you don't need to provide anything:
+### Saving and Loading
+Now, the function you should call depends on the source.
+If you haven't specified a Path or File in Inscript#newInscript, that means that you can't use `loadFromDisk()` and `saveToDisk()`.
 ```java
-final Inscript inscript = Inscript.emptyInscript();
+final Inscript inscript = /* ... */;
+
+// Only use if you are sure you provided a path to Inscript.newInscript()
+inscript.loadFromDisk();
+```
+### Node Editor
+There are 3 node implementations:
+1. `ScalarNode` - a mapping of a key to a value.
+2. `SectionNode` - holds a bunch of children nodes.
+3. `RootSectionNode` - a default implementation of SectionNode with a specific root key and an empty modifiable list of children nodes.
+
+Every editor is a `SectionNode` wrapped in a **`ConfigSection`**
+A ConfigSection is a chainable/fluent builder interface that has the following methods:
+```java
+@NotNull
+@Unmodifiable
+Set<ConfigNode> getChildren();
+    
+@NotNull
+@Unmodifiable
+Set<String> getKeys();
+
+boolean isRoot();
+
+@NotNull
+Optional<ConfigNode> getNode(final @NotNull String key);
+
+boolean isSection(final @NotNull String key);
+
+boolean isScalar(final @NotNull String key);
+
+@NotNull
+SectionNode getSection();
+
+@NotNull
+Optional<ConfigSection> getSection(final @NotNull String key);
+
+@NotNull
+ConfigSection createSection(final @NotNull String key);
+
+@NotNull
+@CanIgnoreReturnValue
+ConfigSection section(final @NotNull String key, final @NotNull Consumer<ConfigSection> handler);
+
+@NotNull
+<T> Optional<T> get(final @NotNull String key, final @NotNull Class<? extends T> ignoredType);
+
+@NotNull
+<T> List<T> getList(final @NotNull String key, final @NotNull Class<? extends T> ignoredType);
+
+@NotNull
+@CanIgnoreReturnValue
+<T> ConfigSection set(final @NotNull String key, final @Nullable T value);
+
+boolean has(final @NotNull String key);
+
+boolean contains(final @NotNull String key);
+
+@NotNull
+@CanIgnoreReturnValue
+ConfigSection unset(final @NotNull String key);
+
+@NotNull
+@CanIgnoreReturnValue
+ConfigSection reset();
+
+@NotNull
+@CanIgnoreReturnValue
+ConfigSection forEachSection(final @NotNull Consumer<ConfigSection> sectionConsumer);
+
+@NotNull 
+@CanIgnoreReturnValue
+ConfigSection forEachScalar(final @NotNull Consumer<ScalarNode<?>> scalarConsumer);
+
+@NotNull
+@CanIgnoreReturnValue 
+ConfigSection forEach(final @NotNull Consumer<ScalarNode<?>> scalarConsumer, final @NotNull Consumer<ConfigSection> sectionConsumer);
+
+@NotNull
+@CanIgnoreReturnValue
+ConfigSection comment(final @NotNull String key, final @NotNull Collection<? extends String> comments);
+
+@NotNull
+Collection<String> getComments(final @NotNull String key);
+
+@NotNull
+@CanIgnoreReturnValue 
+ConfigSection comment(final @NotNull String key, final @NotNull String @NotNull ... comments);
+```
+To access the root section editor, you can use:
+```java
+final Inscript inscript = /* ... */;
+final ConfigSection root = inscript.getRoot();
 ```
 
-To obtain the inscript editor, you use `Inscript.getEditor()`.
+### Miscellaneous
+> ![NOTE]
+> By default, Inscript does not run anything asynchronously for you.
 
-Loading:
-1. Files
-   ```java
-   inscript.loadFromDisk();
-   ```
-2. String
-   ```java
-   inscript.loadFromString("gender = \"male\"")
-   ```
-
-Saving:
-1. Files
-   ```java
-   inscript.saveToDisk();
-   ```
-2. String
-   ```java
-   final String saved = inscript.saveToString()
-   ```
+> ![CAUTION]
+> Any loading and saving operations from Inscript **should be run asynchronously**. 
+> 
+> Make sure to run the string based methods (not the disk ones) asynchronously as well.
+> They are basically the same as the disk based ones without the file writing and reading.
+>
+> **Example:**
+> ```java
+> CompletableFuture.runAsync(inscript::loadFromDisk).thenRun(() -> {
+>     // ...
+> });
+> ```
