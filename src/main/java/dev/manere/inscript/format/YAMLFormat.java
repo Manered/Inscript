@@ -167,7 +167,14 @@ public class YAMLFormat implements FileFormat {
             section.getComments().addAll(tempComments);
             tempComments.clear();
 
-            String childLine;
+            String childLine = justRead;
+
+            final String justReadExpectedChildIndent = InscriptConstants.INDENT.get().apply(depth + 1);
+            if (childLine.startsWith(justReadExpectedChildIndent) && !childLine.trim().startsWith("-")) {
+                final ConfigNode childNode = parseNode(childLine, reader, depth + 1, tempComments);
+                if (childNode != null) section.getChildren().add(childNode);
+            }
+
             while ((childLine = reader.readLine()) != null) {
                 final String expectedChildIndent = InscriptConstants.INDENT.get().apply(depth + 1);
                 if (!childLine.startsWith(expectedChildIndent) && !childLine.trim().startsWith("-")) break;
