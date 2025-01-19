@@ -76,13 +76,13 @@ public class YAMLFormat implements FileFormat {
         final String value = line.substring(colonIndex + 1).trim();
 
         if (value.isEmpty() || line.trim().endsWith(":")) {
-            final String justRead = reader.readLine().trim();
+            final String justRead = reader.readLine();
 
-            if (justRead.startsWith("-")) {
+            if (justRead.trim().startsWith("-")) {
                 final List<Object> list = new ArrayList<>();
 
-                if (!justRead.startsWith("-")) throw new InscriptException();
-                final String justReadItemValue = justRead.substring(1).trim();
+                if (!justRead.trim().startsWith("-")) throw new InscriptException();
+                final String justReadItemValue = justRead.trim().substring(1).trim();
 
                 if (!justReadItemValue.trim().isEmpty()) {
                     InlineValue<?> inlineMatched = new StringValue();
@@ -167,13 +167,13 @@ public class YAMLFormat implements FileFormat {
             section.getComments().addAll(tempComments);
             tempComments.clear();
 
-            String childLine = justRead;
-
             final String justReadExpectedChildIndent = InscriptConstants.INDENT.get().apply(depth + 1);
-            if (childLine.startsWith(justReadExpectedChildIndent) && !childLine.trim().startsWith("-")) {
-                final ConfigNode childNode = parseNode(childLine, reader, depth + 1, tempComments);
+            if (justRead.startsWith(justReadExpectedChildIndent) && !justRead.trim().startsWith("-")) {
+                final ConfigNode childNode = parseNode(justRead, reader, depth + 1, tempComments);
                 if (childNode != null) section.getChildren().add(childNode);
             }
+
+            String childLine;
 
             while ((childLine = reader.readLine()) != null) {
                 final String expectedChildIndent = InscriptConstants.INDENT.get().apply(depth + 1);
