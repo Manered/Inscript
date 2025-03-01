@@ -155,4 +155,9 @@ public interface ConfigSection {
     default ConfigSection comment(final @NotNull String key, final @NotNull String @NotNull ... comments) {
         return comment(key, Arrays.asList(comments));
     }
+
+    @NotNull
+    default String getKey() {
+        return getSection().getKey();
+    }
 }

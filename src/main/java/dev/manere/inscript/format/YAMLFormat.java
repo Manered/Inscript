@@ -57,7 +57,7 @@ public class YAMLFormat implements FileFormat {
     private ConfigNode parseNode(@NotNull String line, final @NotNull BufferedReader reader, final int depth, final @NotNull Set<String> tempComments) throws Exception {
         if (line.isBlank() || line.trim().startsWith("-")) return null;
 
-        final String indent = InscriptConstants.INDENT.get().apply(depth);
+        final String indent = InscriptConstants.INDENT.getValue().apply(depth);
         if (!line.startsWith(indent)) return null;
 
         line = line.substring(indent.length()).trim();
@@ -167,7 +167,7 @@ public class YAMLFormat implements FileFormat {
             section.getComments().addAll(tempComments);
             tempComments.clear();
 
-            final String justReadExpectedChildIndent = InscriptConstants.INDENT.get().apply(depth + 1);
+            final String justReadExpectedChildIndent = InscriptConstants.INDENT.getValue().apply(depth + 1);
             if (justRead.startsWith(justReadExpectedChildIndent) && !justRead.trim().startsWith("-")) {
                 final ConfigNode childNode = parseNode(justRead, reader, depth + 1, tempComments);
                 if (childNode != null) section.getChildren().add(childNode);
@@ -176,7 +176,7 @@ public class YAMLFormat implements FileFormat {
             String childLine;
 
             while ((childLine = reader.readLine()) != null) {
-                final String expectedChildIndent = InscriptConstants.INDENT.get().apply(depth + 1);
+                final String expectedChildIndent = InscriptConstants.INDENT.getValue().apply(depth + 1);
                 if (!childLine.startsWith(expectedChildIndent) && !childLine.trim().startsWith("-")) break;
 
                 final ConfigNode childNode = parseNode(childLine, reader, depth + 1, tempComments);
@@ -298,7 +298,7 @@ public class YAMLFormat implements FileFormat {
     private void writeNode(final @NotNull InscriptStringWriter writer, final @NotNull ConfigNode node, final int depth) {
         if (depth < 0) throw new InscriptException();
 
-        final String indent = InscriptConstants.INDENT.get().apply(depth);
+        final String indent = InscriptConstants.INDENT.getValue().apply(depth);
 
         final String key = node.getKey();
 
@@ -309,7 +309,7 @@ public class YAMLFormat implements FileFormat {
             }
 
             if (section.getChildren().isEmpty()) {
-                writer.write(indent + key + ":\n" + InscriptConstants.INDENT.get().apply(1) + "\n");
+                writer.write(indent + key + ":\n" + InscriptConstants.INDENT.getValue().apply(1) + "\n");
                 return;
             }
 
@@ -341,9 +341,9 @@ public class YAMLFormat implements FileFormat {
                         final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(element.getClass()).orElse(null);
 
                         if (value == null) {
-                            writer.write(indent + InscriptConstants.INDENT.get().apply(1) + "- " + element);
+                            writer.write(indent + InscriptConstants.INDENT.getValue().apply(1) + "- " + element);
                         } else {
-                            writer.write(indent + InscriptConstants.INDENT.get().apply(1) + "- " + value.serialize(element));
+                            writer.write(indent + InscriptConstants.INDENT.getValue().apply(1) + "- " + value.serialize(element));
                         }
 
                         writer.newLine();

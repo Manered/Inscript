@@ -9,7 +9,7 @@ import java.util.Base64;
 public class ByteArrayValue implements InlineValue<byte[]> {
     @Override
     public boolean matches(final @NotNull String text) {
-        return text.startsWith("base64(") || text.endsWith(")");
+        return text.startsWith("base64(") && text.endsWith(")");
     }
 
     @Override

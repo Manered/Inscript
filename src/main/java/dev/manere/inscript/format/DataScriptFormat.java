@@ -55,7 +55,7 @@ public class DataScriptFormat implements FileFormat {
     @Nullable
     @ApiStatus.Internal
     private ConfigNode parseNode(@NotNull String line, final @NotNull BufferedReader reader, final int depth, final @NotNull Set<String> tempComments) throws Exception {
-        final String indent = InscriptConstants.INDENT.get().apply(depth);
+        final String indent = InscriptConstants.INDENT.getValue().apply(depth);
         if (!line.startsWith(indent)) return null;
 
         line = line.substring(indent.length());
@@ -244,7 +244,7 @@ public class DataScriptFormat implements FileFormat {
     private void writeNode(final @NotNull InscriptStringWriter writer, final @NotNull ConfigNode node, final int depth) {
         if (depth < 0) throw new InscriptException();
 
-        final String indent = InscriptConstants.INDENT.get().apply(depth);
+        final String indent = InscriptConstants.INDENT.getValue().apply(depth);
 
         final String key = node.getKey();
 
@@ -288,9 +288,9 @@ public class DataScriptFormat implements FileFormat {
                         final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(element.getClass()).orElse(null);
 
                         if (value == null) {
-                            writer.write(indent + InscriptConstants.INDENT.get().apply(1) + element);
+                            writer.write(indent + InscriptConstants.INDENT.getValue().apply(1) + element);
                         } else {
-                            writer.write(indent + InscriptConstants.INDENT.get().apply(1) + value.serialize(element));
+                            writer.write(indent + InscriptConstants.INDENT.getValue().apply(1) + value.serialize(element));
                         }
 
                         if (i != list.size() - 1) {

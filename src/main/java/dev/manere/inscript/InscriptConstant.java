@@ -12,19 +12,19 @@ public class InscriptConstant<T> {
 
     @NotNull
     @CanIgnoreReturnValue
-    public InscriptConstant<T> set(final @NotNull T value) {
+    public InscriptConstant<T> value(final @NotNull T value) {
         this.value = value;
         return this;
     }
 
     @NotNull
-    public T get() {
+    public T getValue() {
         return value;
     }
 
     @NotNull
     @Override
     public String toString() {
-        return get().toString();
+        return getValue().toString();
     }
 }

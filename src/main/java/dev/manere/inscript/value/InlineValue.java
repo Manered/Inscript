@@ -44,6 +44,11 @@ public interface InlineValue<T> {
         return new InlineValue.Builder<>();
     }
 
+    @NotNull
+    static <T> InlineValue.Builder<T> builder(final @NotNull Class<T> ignoredType) {
+        return builder();
+    }
+
     class Builder<T> {
         private Function<@NotNull String, @NotNull Boolean> matches;
         private Function<@NotNull String, @Nullable T> deserialize;

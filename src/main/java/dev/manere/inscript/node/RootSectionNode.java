@@ -13,7 +13,7 @@ public class RootSectionNode extends SectionNode {
     @NotNull
     @Override
     public String getKey() {
-        return InscriptConstants.ROOT_SECTION_KEY.get();
+        return InscriptConstants.ROOT_SECTION_KEY.getValue();
     }
 
     @NotNull

@@ -25,7 +25,7 @@ public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements C
 
     @Override
     public @NotNull ConfigSection createSection(final @NotNull String key) {
-        if (key.equalsIgnoreCase(InscriptConstants.ROOT_SECTION_KEY.get())) throw new IllegalArgumentException("Illegal attempt to create a root section.");
+        if (key.equalsIgnoreCase(InscriptConstants.ROOT_SECTION_KEY.getValue())) throw new IllegalArgumentException("Illegal attempt to create a root section.");
 
         final Optional<ConfigSection> sectionFound = getSection(key);
         if (sectionFound.isPresent()) return sectionFound.get();

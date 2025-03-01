@@ -15,7 +15,6 @@ public class ValueRegistry {
 
     static {
         REGISTRY = new ValueRegistry()
-            .register(byte[].class, new ByteArrayValue())
             .register(Boolean.class, new BooleanValue())
             .register(Byte.class, new ByteValue())
             .register(Short.class, new ShortValue())
@@ -24,7 +23,8 @@ public class ValueRegistry {
             .register(Float.class, new FloatValue())
             .register(Long.class, new LongValue())
             .register(UUID.class, new UUIDValue())
-            .register(Character.class, new CharacterValue());
+            .register(Character.class, new CharacterValue())
+            .register(byte[].class, new ByteArrayValue());
 
         REGISTRY.register(String.class, new StringValue());
     }

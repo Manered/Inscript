@@ -4,6 +4,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import dev.manere.inscript.format.FileFormat;
 import dev.manere.inscript.format.FileFormats;
 import dev.manere.inscript.node.RootSectionNode;
+import dev.manere.inscript.value.ValueRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -57,6 +58,11 @@ public class Inscript {
     @CanIgnoreReturnValue
     public static Inscript newInscript(final @NotNull FileFormat format) {
         return new Inscript(null, format);
+    }
+
+    @NotNull
+    public static ValueRegistry getRegistry() {
+        return ValueRegistry.REGISTRY;
     }
 
     @NotNull

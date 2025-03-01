@@ -12,12 +12,14 @@ public interface InscriptValue<T> {
     @Nullable
     T deserialize(final @NotNull ConfigSection section);
 
-    void serialize(final @NotNull T t, final @NotNull ConfigSection section);
+    default void serialize(final @NotNull T t, final @NotNull ConfigSection section) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
     @NotNull
     static <T> InscriptValue<T> create(
         final @NotNull Function<@NotNull ConfigSection, @Nullable T> deserialize,
-        final @NotNull BiConsumer<@NotNull T, @NotNull ConfigSection> serialize
+        final @Nullable BiConsumer<@NotNull T, @NotNull ConfigSection> serialize
     ) {
         return new InscriptValue<>() {
             @Override
@@ -27,6 +29,7 @@ public interface InscriptValue<T> {
 
             @Override
             public void serialize(@NotNull T t, @NotNull ConfigSection section) {
+                if (serialize == null) throw new UnsupportedOperationException("Not implemented");
                 serialize.accept(t, section);
             }
         };
@@ -36,6 +39,11 @@ public interface InscriptValue<T> {
     @NotNull
     static <T> InscriptValue.Builder<T> builder() {
         return new InscriptValue.Builder<>();
+    }
+
+    @NotNull
+    static <T> InscriptValue.Builder<T> builder(final @NotNull Class<T> ignoredType) {
+        return builder();
     }
 
     class Builder<T> {
