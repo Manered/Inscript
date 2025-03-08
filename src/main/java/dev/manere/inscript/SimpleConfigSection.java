@@ -31,7 +31,7 @@ public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements C
         if (sectionFound.isPresent()) return sectionFound.get();
 
         final SectionNode created = new SectionNode() {
-            private final Set<ConfigNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
+            private final Set<ConfigNode> nodes = new LinkedHashSet<>();
 
             @NotNull
             public Set<ConfigNode> getChildren() {

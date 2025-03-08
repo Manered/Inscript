@@ -3,6 +3,7 @@ package dev.manere.inscript;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import dev.manere.inscript.format.FileFormat;
 import dev.manere.inscript.format.FileFormats;
+import dev.manere.inscript.format.InscriptReader;
 import dev.manere.inscript.node.RootSectionNode;
 import dev.manere.inscript.value.ValueRegistry;
 import org.jetbrains.annotations.NotNull;
@@ -111,17 +112,27 @@ public class Inscript {
 
         try (final BufferedReader reader = Files.newBufferedReader(getPath().get())) {
             root.reset();
-            format.load(reader, root);
+
+            final List<ErrorContext> errors = format.load(InscriptReader.reader(reader.lines().toList()), this);
+
+            for (final ErrorContext error : errors) {
+                error.handle();
+            }
         } catch (final Exception e) {
             throw new InscriptException(e);
         }
     }
 
     public void loadFromString(final @NotNull String configString) {
-        try (final BufferedReader reader = new BufferedReader(new StringReader(configString))) {
+        try {
             root.reset();
-            format.load(reader, root);
-        } catch (Exception e) {
+
+            final List<ErrorContext> errors = format.load(InscriptReader.reader(configString.lines().toList()), this);
+
+            for (final ErrorContext error : errors) {
+                error.handle();
+            }
+        } catch (final Exception e) {
             throw new InscriptException(e);
         }
     }

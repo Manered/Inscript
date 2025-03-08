@@ -6,6 +6,21 @@ import java.util.Optional;
 
 public abstract class ScalarNode<V> extends ConfigNode {
     @NotNull
+    public static <V> ScalarNode<V> scalar(final @NotNull String key, final @NotNull V value) {
+        return new ScalarNode<>() {
+            @Override
+            public @NotNull V getValue() {
+                return value;
+            }
+
+            @Override
+            public @NotNull String getKey() {
+                return key;
+            }
+        };
+    }
+
+    @NotNull
     public abstract V getValue();
 
     @NotNull
@@ -20,6 +35,6 @@ public abstract class ScalarNode<V> extends ConfigNode {
     @NotNull
     @Override
     public String toString() {
-        return getKey() + "[value = " + getValue() + ", comments = " + getComments() + "]";
+        return "<" + getKey() + " = " + getValue() + ">";
     }
 }

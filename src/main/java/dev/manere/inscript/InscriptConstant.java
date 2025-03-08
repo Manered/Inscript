@@ -12,7 +12,7 @@ public class InscriptConstant<T> {
 
     @NotNull
     @CanIgnoreReturnValue
-    public InscriptConstant<T> value(final @NotNull T value) {
+    public InscriptConstant<T> edit(final @NotNull T value) {
         this.value = value;
         return this;
     }

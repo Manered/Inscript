@@ -1,36 +1,44 @@
 package dev.manere.inscript.format;
 
-import dev.manere.inscript.ConfigSection;
-import dev.manere.inscript.InscriptConstants;
-import dev.manere.inscript.InscriptException;
+import dev.manere.inscript.*;
 import dev.manere.inscript.node.ConfigNode;
 import dev.manere.inscript.node.ScalarNode;
 import dev.manere.inscript.node.SectionNode;
 import dev.manere.inscript.value.InlineValue;
 import dev.manere.inscript.value.ValueRegistry;
-import dev.manere.inscript.value.impl.StringValue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.io.BufferedReader;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class DataScriptFormat implements FileFormat {
+    @NotNull
     @Override
-    public void load(final @NotNull BufferedReader reader, final @NotNull ConfigSection root) throws Exception {
-        final Set<String> tempComments = new HashSet<>();
+    @Unmodifiable
+    public List<ErrorContext> load(final @NotNull InscriptReader reader, final @NotNull Inscript inscript) {
+        final Set<String> tempComments = new LinkedHashSet<>();
+        final List<ErrorContext> errors = new ArrayList<>();
+        final Set<Integer> processedLines = new LinkedHashSet<>();
 
-        String line;
-        while ((line = reader.readLine()) != null) {
-            line = line.trim();
-            if (line.isBlank()) continue;
+        for (int linePosition = 0; linePosition < reader.getLines().size(); linePosition++) {
+            if (processedLines.contains(linePosition)) continue;
+            final String line = reader.read(linePosition);
+            if (line.isBlank()) {
+                processedLines.add(linePosition);
+                continue;
+            }
 
-            final ConfigNode node = parseNode(line, reader, 0, tempComments);
-            if (node != null) root.getSection().getChildren().add(node);
+            try {
+                final Optional<ErrorContext> result = parseNode(new Line(linePosition, line), reader, inscript, new ParseNodeContext(0, tempComments, inscript.getRoot().getSection()), processedLines);
+                result.ifPresent(errors::add);
+            } catch (final Exception e) {
+                ErrorContext.create(new Line(linePosition, line), inscript, "<" + e.getClass().getSimpleName() + "> " + e.getMessage()).handle();
+                e.printStackTrace(System.err);
+            }
         }
+
+        return errors;
     }
 
     @NotNull
@@ -52,20 +60,30 @@ public class DataScriptFormat implements FileFormat {
         return List.of("ds");
     }
 
-    @Nullable
-    @ApiStatus.Internal
-    private ConfigNode parseNode(@NotNull String line, final @NotNull BufferedReader reader, final int depth, final @NotNull Set<String> tempComments) throws Exception {
-        final String indent = InscriptConstants.INDENT.getValue().apply(depth);
-        if (!line.startsWith(indent)) return null;
+    @NotNull
+    public Optional<ErrorContext> parseNode(final @NotNull Line line, final @NotNull InscriptReader reader, final @NotNull Inscript inscript, final @NotNull ParseNodeContext context, final @NotNull Set<Integer> processedLines) {
+        if (processedLines.contains(line.getPosition())) return Optional.empty();
+        processedLines.add(line.getPosition());
 
-        line = line.substring(indent.length());
+        final String indent = InscriptConstants.INDENT.getValue().apply(context.getExpectedDepth());
+        final String actualIndent = line.getText().substring(0, line.getText().length() - line.getText().trim().length());
 
-        if (line.startsWith("//")) {
-            tempComments.add(line.substring("//".length()).trim());
-            return null;
+        if (!line.getText().isBlank() && !line.getText().startsWith(indent)) {
+            return Optional.of(ErrorContext.create(line, inscript, "Invalid indentation, expected '" + indent + "' but found '" + actualIndent + "'"));
         }
 
-        final String[] parts = line.split("=", 2);
+        if (line.getText().startsWith("//")) {
+            context.addComments(line.getText().substring("//".length()).trim());
+            return Optional.empty();
+        }
+
+        line.editText(String::trim);
+
+        if (line.getText().equals("...")) {
+            return Optional.empty();
+        }
+
+        final String[] parts = line.getText().split("=");
         final String name = parts[0].trim();
 
         final String key = name
@@ -74,9 +92,9 @@ public class DataScriptFormat implements FileFormat {
             .trim();
 
         if (parts.length == 1) {
-            if (line.endsWith("{")) {
+            if (line.getText().endsWith("{")) {
                 final SectionNode section = new SectionNode() {
-                    private final Set<ConfigNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                    private final Set<ConfigNode> nodes = new LinkedHashSet<>();
 
                     @NotNull
                     @Override
@@ -91,21 +109,32 @@ public class DataScriptFormat implements FileFormat {
                     }
                 };
 
-                section.getComments().addAll(tempComments);
-                tempComments.clear();
+                section.getComments().addAll(context.getComments());
+                context.clearComments();
 
-                String childLine;
-                while ((childLine = reader.readLine()) != null && !childLine.trim().equals("}")) {
-                    final ConfigNode childNode = parseNode(childLine, reader, depth + 1, tempComments);
-                    if (childNode != null) {
-                        section.getChildren().add(childNode);
+                int nestedDepth = 1;
+                for (int position = line.getPosition() + 1; position < reader.getLines().size(); position++) {
+                    final String childLine = reader.read(position);
+
+                    if (childLine.trim().endsWith("{")) {
+                        nestedDepth++;
+                    } else if (childLine.trim().equals("}")) {
+                        nestedDepth--;
+                        if (nestedDepth == 0) {
+                            processedLines.add(position);
+                            break;
+                        }
                     }
+
+                    final ErrorContext error = parseNode(new Line(position, childLine), reader, inscript, new ParseNodeContext(context.getExpectedDepth() + 1, context.getComments(), section), processedLines).orElse(null);
+                    if (error != null) return Optional.of(error);
                 }
 
-                return section;
-            } else if (line.endsWith("{}")) {
-                final SectionNode node = new SectionNode() {
-                    private final Set<ConfigNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                context.getParent().getChildren().add(section);
+                return Optional.empty();
+            } else if (line.getText().replaceAll(" ", "").endsWith("{}")) {
+                final SectionNode section = new SectionNode() {
+                    private final Set<ConfigNode> nodes = new LinkedHashSet<>();
 
                     @NotNull
                     @Override
@@ -120,73 +149,115 @@ public class DataScriptFormat implements FileFormat {
                     }
                 };
 
-                node.getComments().addAll(tempComments);
-                tempComments.clear();
+                section.getComments().addAll(context.getComments());
+                context.clearComments();
 
-                return node;
+                context.getParent().getChildren().add(section);
+
+                return Optional.empty();
+            }
+        }
+
+        if (parts.length == 2) {
+            final String value = parts[1].trim();
+
+            if (value.replaceAll(" ", "").equals("[]")) {
+                final ScalarNode<?> node = new ScalarNode<>() {
+                    @Override
+                    public @NotNull String getKey() {
+                        return key;
+                    }
+
+                    @Override
+                    public @NotNull Object getValue() {
+                        return List.of();
+                    }
+                };
+
+                node.getComments().addAll(context.getComments());
+                context.clearComments();
+
+                context.getParent().getChildren().add(node);
+
+                return Optional.empty();
             }
 
-            return null;
-        }
+            if (value.startsWith("[")) {
+                final List<Object> list = new ArrayList<>();
+                final StringBuilder listContent = new StringBuilder(value);
 
-        final String value = parts[1].trim();
+                int newLinePosition = line.getPosition();
 
-        if (value.equals("[]")) {
-            final List<?> list = new ArrayList<>();
-
-            final ScalarNode<?> node = new ScalarNode<>() {
-                @Override
-                public @NotNull String getKey() {
-                    return key;
-                }
-
-                @Override
-                public @NotNull Object getValue() {
-                    return list;
-                }
-            };
-
-            node.getComments().addAll(tempComments);
-            tempComments.clear();
-
-            return node;
-        }
-
-        if (value.startsWith("[")) {
-            final List<Object> list = new ArrayList<>();
-            final StringBuilder listContent = new StringBuilder(value);
-
-            while (!listContent.toString().trim().endsWith("]")) {
-                String nextLine = reader.readLine();
-                if (nextLine != null) {
+                while (!listContent.toString().trim().endsWith("]")) {
+                    newLinePosition++;
+                    if (newLinePosition >= reader.getLines().size())
+                        return Optional.of(ErrorContext.create(line, inscript, "Invalid list"));
+                    final String nextLine = reader.read(newLinePosition);
                     listContent.append(nextLine.trim());
+                    processedLines.add(newLinePosition);
                 }
-            }
 
-            final String content = listContent.substring(1, listContent.length() - 1).trim();
+                final String content = listContent.substring(1, listContent.length() - 1).trim();
 
-            final String[] elements = content.split(",");
+                final String[] elements = content.split(",");
 
-            for (String element : elements) {
-                element = element.trim();
+                for (String element : elements) {
+                    element = element.trim();
 
-                if (element.equalsIgnoreCase("Null")) continue;
+                    if (element.equalsIgnoreCase("Null")) continue;
 
-                InlineValue<?> inlineMatched = new StringValue();
+                    InlineValue<?> inlineMatched = ValueRegistry.REGISTRY.getInline(String.class).orElseThrow();
 
-                for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
-                    if (inline.equals(new StringValue())) continue;
+                    for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
+                        if (inline.equals(ValueRegistry.REGISTRY.getInline(String.class).orElseThrow())) continue;
 
-                    if (inline.matches(element)) {
-                        inlineMatched = inline;
-                        break;
+                        if (inline.matches(element)) {
+                            inlineMatched = inline;
+                            break;
+                        }
+                    }
+
+                    if (inlineMatched.matches(element)) {
+                        list.add(inlineMatched.deserialize(element));
                     }
                 }
 
-                if (inlineMatched.matches(element)) {
-                    list.add(inlineMatched.deserialize(element));
+                final ScalarNode<?> node = new ScalarNode<>() {
+                    @Override
+                    public @NotNull String getKey() {
+                        return key;
+                    }
+
+                    @Override
+                    public @NotNull Object getValue() {
+                        return List.copyOf(list);
+                    }
+                };
+
+                node.getComments().addAll(context.getComments());
+                context.clearComments();
+
+                context.getParent().getChildren().add(node);
+
+                return Optional.empty();
+            }
+
+            if (value.isBlank()) return Optional.empty();
+            if (value.equalsIgnoreCase("Null")) return Optional.empty();
+
+            InlineValue<?> inlineMatched = ValueRegistry.REGISTRY.getInline(String.class).orElseThrow();
+
+            for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
+                if (inline.equals(ValueRegistry.REGISTRY.getInline(String.class).orElseThrow())) continue;
+
+                if (inline.matches(value)) {
+                    inlineMatched = inline;
+                    break;
                 }
             }
+
+            final Object o = inlineMatched.deserialize(value);
+            if (o == null) return Optional.empty();
 
             final ScalarNode<?> node = new ScalarNode<>() {
                 @Override
@@ -196,48 +267,18 @@ public class DataScriptFormat implements FileFormat {
 
                 @Override
                 public @NotNull Object getValue() {
-                    return Collections.synchronizedList(list);
+                    return o;
                 }
             };
 
-            node.getComments().addAll(tempComments);
-            tempComments.clear();
 
-            return node;
+            node.getComments().addAll(context.getComments());
+            context.clearComments();
+
+            context.getParent().getChildren().add(node);
         }
 
-        if (value.equalsIgnoreCase("Null")) return null;
-
-        InlineValue<?> inlineMatched = new StringValue();
-
-        for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
-            if (inline.equals(new StringValue())) continue;
-
-            if (inline.matches(value)) {
-                inlineMatched = inline;
-                break;
-            }
-        }
-
-        final Object o = inlineMatched.deserialize(value);
-        if (o == null) return null;
-
-        final ScalarNode<?> node = new ScalarNode<>() {
-            @Override
-            public @NotNull String getKey() {
-                return key;
-            }
-
-            @Override
-            public @NotNull Object getValue() {
-                return o;
-            }
-        };
-
-        node.getComments().addAll(tempComments);
-        tempComments.clear();
-
-        return node;
+        return Optional.empty();
     }
 
     @ApiStatus.Internal
@@ -256,6 +297,7 @@ public class DataScriptFormat implements FileFormat {
 
             if (section.getChildren().isEmpty()) {
                 writer.write(indent + key + " {}");
+                writer.newline();
                 return;
             }
 
@@ -280,7 +322,8 @@ public class DataScriptFormat implements FileFormat {
                     writer.write(indent + key + " = []");
                     writer.newLine();
                 } else {
-                    writer.write(indent + key + " = [\n");
+                    writer.write(indent + key + " = [");
+                    writer.newline();
 
                     for (int i = 0; i < list.size(); i++) {
                         final Object element = list.get(i);
@@ -315,8 +358,6 @@ public class DataScriptFormat implements FileFormat {
 
                 writer.write(indent + key + " = " + value.serialize(objectValue) + "\n");
             }
-        } else {
-            throw new InscriptException("Found unsupported ConfigNode: " + node.getClass().getSimpleName());
         }
     }
 }

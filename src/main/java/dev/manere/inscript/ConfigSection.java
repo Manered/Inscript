@@ -16,13 +16,20 @@ public interface ConfigSection {
     @NotNull
     @Unmodifiable
     default Set<ConfigNode> getChildren() {
-        return Set.copyOf(getSection().getChildren());
+        return new LinkedHashSet<>(getSection().getChildren());
+    }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default ConfigSection copy(final @NotNull ConfigSection other) {
+        getSection().getChildren().addAll(other.getChildren());
+        return this;
     }
 
     @NotNull
     @Unmodifiable
     default Set<String> getKeys() {
-        final Set<String> keys = new HashSet<>();
+        final Set<String> keys = new LinkedHashSet<>();
 
         for (final ConfigNode node : getChildren()) {
             keys.add(node.getKey());

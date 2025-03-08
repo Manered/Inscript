@@ -19,6 +19,6 @@ public class BooleanValue implements InlineValue<Boolean> {
 
     @Override
     public @Nullable String serialize(final @NotNull Boolean b) {
-        return b ? "True" : "False";
+        return b ? "true" : "false";
     }
 }

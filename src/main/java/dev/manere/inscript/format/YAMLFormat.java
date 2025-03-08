@@ -1,269 +1,198 @@
 package dev.manere.inscript.format;
 
-import dev.manere.inscript.ConfigSection;
-import dev.manere.inscript.InscriptConstants;
-import dev.manere.inscript.InscriptException;
+import dev.manere.inscript.*;
 import dev.manere.inscript.node.ConfigNode;
 import dev.manere.inscript.node.ScalarNode;
 import dev.manere.inscript.node.SectionNode;
 import dev.manere.inscript.value.InlineValue;
 import dev.manere.inscript.value.ValueRegistry;
-import dev.manere.inscript.value.impl.StringValue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.io.BufferedReader;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class YAMLFormat implements FileFormat {
     @NotNull
     @Override
     @Unmodifiable
-    public Collection<String> getValidFileExtensions() {
-        return List.of("yaml", "yml");
-    }
+    public List<ErrorContext> load(final @NotNull InscriptReader reader, final @NotNull Inscript inscript) {
+        final Set<String> tempComments = new LinkedHashSet<>();
+        final List<ErrorContext> errors = new ArrayList<>();
+        final Set<Integer> processedLines = new LinkedHashSet<>();
 
-    @Override
-    public void load(final @NotNull BufferedReader reader, final @NotNull ConfigSection root) throws Exception {
-        final Set<String> tempComments = new HashSet<>();
+        for (int linePosition = 0; linePosition < reader.getLines().size(); linePosition++) {
+            if (processedLines.contains(linePosition)) continue;
+            final String line = reader.read(linePosition);
+            if (line.isBlank()) {
+                processedLines.add(linePosition);
+                continue;
+            }
 
-        String line;
-        while ((line = reader.readLine()) != null) {
-            line = line.trim();
-            if (line.isBlank()) continue;
-
-            final ConfigNode node = parseNode(line, reader, 0, tempComments);
-            if (node != null) root.getSection().getChildren().add(node);
+            try {
+                final Optional<ErrorContext> result = parseNode(new Line(linePosition, line), reader, inscript, new ParseNodeContext(0, tempComments, inscript.getRoot().getSection()), processedLines);
+                result.ifPresent(errors::add);
+            } catch (final Exception e) {
+                ErrorContext.create(new Line(linePosition, line), inscript, "<" + e.getClass().getSimpleName() + "> " + e.getMessage()).handle();
+                e.printStackTrace(System.err);
+            }
         }
+
+        return errors;
     }
 
     @NotNull
     @Override
-    public String save(final @NotNull ConfigSection root) {
-        final InscriptStringWriter writer = InscriptStringWriter.newWriter();
+    public Optional<ErrorContext> parseNode(final @NotNull Line line, final @NotNull InscriptReader reader, final @NotNull Inscript inscript, final @NotNull ParseNodeContext context, final @NotNull Set<Integer> processedLines) {
+        if (processedLines.contains(line.getPosition())) return Optional.empty();
+        processedLines.add(line.getPosition());
 
-        for (final ConfigNode node : root.getChildren()) {
-            writeNode(writer, node, 0);
+        final String indent = InscriptConstants.INDENT.getValue().apply(context.getExpectedDepth());
+        final String actualIndent = line.getText().substring(0, line.getText().length() - line.getText().trim().length());
+
+        if (!line.getText().isBlank() && !line.getText().startsWith(indent)) {
+            return Optional.of(ErrorContext.create(line, inscript, "Invalid indentation, expected '" + indent + "' but found '" + actualIndent + "'"));
         }
 
-        return writer.build();
-    }
-
-    @Nullable
-    @ApiStatus.Internal
-    private ConfigNode parseNode(@NotNull String line, final @NotNull BufferedReader reader, final int depth, final @NotNull Set<String> tempComments) throws Exception {
-        if (line.isBlank() || line.trim().startsWith("-")) return null;
-
-        final String indent = InscriptConstants.INDENT.getValue().apply(depth);
-        if (!line.startsWith(indent)) return null;
-
-        line = line.substring(indent.length()).trim();
-
-        if (line.startsWith("#")) {
-            tempComments.add(line.substring("#".length()).trim());
-            return null;
+        if (line.getText().startsWith("#")) {
+            context.addComments(line.getText().substring("#".length()).trim());
+            return Optional.empty();
         }
 
-        final int colonIndex = line.indexOf(":");
-        if (colonIndex == -1) {
-            throw new InscriptException("Invalid YAML formatting: missing `:` in line: " + line);
+        line.editText(String::trim);
+
+        if (line.getText().equals("---") || line.getText().equals("...")) {
+            return Optional.empty();
         }
 
-        final String key = line.substring(0, colonIndex).trim();
-        final String value = line.substring(colonIndex + 1).trim();
+        if (line.getText().contains(":")) {
+            final String[] parts = line.getText().split(":", 2);
+            final String key = parts[0].trim();
 
-        if (value.isEmpty() || line.trim().endsWith(":")) {
-            final String justRead = reader.readLine();
+            if (parts.length > 1) {
+                String value = parts[1].trim();
 
-            if (justRead.trim().startsWith("-")) {
-                final List<Object> list = new ArrayList<>();
+                if (value.isBlank() && !reader.read(line.getPosition() + 1).trim().startsWith("-")) {
+                    final SectionNode section = new SectionNode() {
+                        private final Set<ConfigNode> nodes = new LinkedHashSet<>();
 
-                if (!justRead.trim().startsWith("-")) throw new InscriptException();
-                final String justReadItemValue = justRead.trim().substring(1).trim();
+                        @NotNull
+                        @Override
+                        public Set<ConfigNode> getChildren() {
+                            return nodes;
+                        }
 
-                if (!justReadItemValue.trim().isEmpty()) {
-                    InlineValue<?> inlineMatched = new StringValue();
+                        @NotNull
+                        @Override
+                        public String getKey() {
+                            return key;
+                        }
+                    };
 
-                    for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
-                        if (inline.equals(new StringValue())) continue;
+                    section.getComments().addAll(context.getComments());
+                    context.clearComments();
 
-                        if (inline.matches(justReadItemValue)) {
-                            inlineMatched = inline;
+                    for (int position = line.getPosition() + 1; position < reader.getLines().size(); position++) {
+                        final String childLine = reader.read(position);
+                        if (childLine.isBlank()) {
+                            processedLines.add(position);
+                            continue;
+                        }
+
+                        final String childIndent = childLine.substring(0, childLine.length() - childLine.trim().length());
+                        if (childIndent.length() <= actualIndent.length()) {
                             break;
                         }
+
+                        final ErrorContext error = parseNode(new Line(position, childLine), reader, inscript,
+                            new ParseNodeContext(context.getExpectedDepth() + 1, context.getComments(), section),
+                            processedLines
+                        ).orElse(null);
+
+                        if (error != null) return Optional.of(error);
                     }
 
-                    if (inlineMatched.matches(justReadItemValue)) {
-                        list.add(inlineMatched.deserialize(justReadItemValue));
-                    }
+                    context.getParent().getChildren().add(section);
+                    return Optional.empty();
                 }
 
-                String listItemLine;
-                while ((listItemLine = reader.readLine()) != null) {
-                    listItemLine = listItemLine.trim();
+                if (value.equals("[]")) {
+                    final List<?> list = new ArrayList<>();
 
-                    if (!listItemLine.startsWith("-")) {
-                        break;
-                    }
+                    final ScalarNode<?> node = new ScalarNode<>() {
+                        @Override
+                        public @NotNull String getKey() {
+                            return key;
+                        }
 
-                    String listItemValue = listItemLine.substring(1).trim();
+                        @Override
+                        public @NotNull Object getValue() {
+                            return list;
+                        }
+                    };
 
-                    if (!listItemValue.isEmpty()) {
-                        InlineValue<?> inlineMatched = new StringValue();
+                    node.getComments().addAll(context.getComments());
+                    context.clearComments();
 
-                        for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
-                            if (inline.equals(new StringValue())) continue;
+                    context.getParent().getChildren().add(node);
+                    return Optional.empty();
+                }
 
-                            if (inline.matches(listItemValue)) {
-                                inlineMatched = inline;
-                                break;
+                if (value.startsWith("[") && value.endsWith("]")) {
+                    final List<Object> list = new ArrayList<>();
+                    final String content = value.substring(1, value.length() - 1).trim();
+
+                    if (!content.isEmpty()) {
+                        final String[] elements = content.split(",");
+
+                        for (String element : elements) {
+                            element = element.trim();
+
+                            if (element.equalsIgnoreCase("Null")) continue;
+
+                            InlineValue<?> inlineMatched = ValueRegistry.REGISTRY.getInline(String.class).orElseThrow();
+
+                            for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
+                                if (inline.equals(ValueRegistry.REGISTRY.getInline(String.class).orElseThrow())) continue;
+
+                                if (inline.matches(element)) {
+                                    inlineMatched = inline;
+                                    break;
+                                }
+                            }
+
+                            if (inlineMatched.matches(element)) {
+                                list.add(inlineMatched.deserialize(element));
                             }
                         }
+                    }
 
-                        if (inlineMatched.matches(listItemValue)) {
-                            list.add(inlineMatched.deserialize(listItemValue));
+                    final ScalarNode<?> node = new ScalarNode<>() {
+                        @Override
+                        public @NotNull String getKey() {
+                            return key;
                         }
-                    }
-                }
 
-                final ScalarNode<?> node = new ScalarNode<>() {
-                    @Override
-                    public @NotNull String getKey() {
-                        return key;
-                    }
-
-                    @Override
-                    public @NotNull Object getValue() {
-                        return Collections.synchronizedList(list);
-                    }
-                };
-
-                node.getComments().addAll(tempComments);
-                tempComments.clear();
-
-                return node;
-            }
-
-            final SectionNode section = new SectionNode() {
-                private final Set<ConfigNode> nodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-                @NotNull
-                @Override
-                public Set<ConfigNode> getChildren() {
-                    return nodes;
-                }
-
-                @NotNull
-                @Override
-                public String getKey() {
-                    return key;
-                }
-            };
-
-
-            section.getComments().addAll(tempComments);
-            tempComments.clear();
-
-            final String justReadExpectedChildIndent = InscriptConstants.INDENT.getValue().apply(depth + 1);
-            if (justRead.startsWith(justReadExpectedChildIndent) && !justRead.trim().startsWith("-")) {
-                final ConfigNode childNode = parseNode(justRead, reader, depth + 1, tempComments);
-                if (childNode != null) section.getChildren().add(childNode);
-            }
-
-            String childLine;
-
-            while ((childLine = reader.readLine()) != null) {
-                final String expectedChildIndent = InscriptConstants.INDENT.getValue().apply(depth + 1);
-                if (!childLine.startsWith(expectedChildIndent) && !childLine.trim().startsWith("-")) break;
-
-                final ConfigNode childNode = parseNode(childLine, reader, depth + 1, tempComments);
-                if (childNode != null) section.getChildren().add(childNode);
-            }
-
-            return section;
-        } else {
-            if (value.equals("[]")) {
-                final List<?> list = new ArrayList<>();
-
-                final ScalarNode<?> node = new ScalarNode<>() {
-                    @Override
-                    public @NotNull String getKey() {
-                        return key;
-                    }
-
-                    @Override
-                    public @NotNull Object getValue() {
-                        return Collections.synchronizedList(list);
-                    }
-                };
-
-                node.getComments().addAll(tempComments);
-                tempComments.clear();
-
-                return node;
-            }
-
-            if (value.startsWith("[")) {
-                final List<Object> list = new ArrayList<>();
-                final StringBuilder listContent = new StringBuilder(value);
-
-                while (!listContent.toString().trim().endsWith("]")) {
-                    String nextLine = reader.readLine();
-                    if (nextLine != null) {
-                        listContent.append(nextLine.trim());
-                    }
-                }
-
-                final String content = listContent.substring(1, listContent.length() - 1).trim();
-
-                final String[] elements = content.split(",");
-
-                for (String element : elements) {
-                    element = element.trim();
-                    if (element.equalsIgnoreCase("null")) continue;
-
-                    InlineValue<?> inlineMatched = new StringValue();
-
-                    for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
-                        if (inline.equals(new StringValue())) continue;
-
-                        if (inline.matches(element)) {
-                            inlineMatched = inline;
-                            break;
+                        @Override
+                        public @NotNull Object getValue() {
+                            return List.copyOf(list);
                         }
-                    }
+                    };
 
-                    if (inlineMatched.matches(element)) {
-                        list.add(inlineMatched.deserialize(element));
-                    }
+                    node.getComments().addAll(context.getComments());
+                    context.clearComments();
+
+                    context.getParent().getChildren().add(node);
+                    return Optional.empty();
                 }
 
-                final ScalarNode<?> node = new ScalarNode<>() {
-                    @Override
-                    public @NotNull String getKey() {
-                        return key;
-                    }
+                if (value.equalsIgnoreCase("Null")) return Optional.empty();
+                if (value.isBlank() || reader.read(line.getPosition() + 1).trim().startsWith("-")) return Optional.empty();
 
-                    @Override
-                    public @NotNull Object getValue() {
-                        return Collections.synchronizedList(list);
-                    }
-                };
-
-                node.getComments().addAll(tempComments);
-                tempComments.clear();
-
-                return node;
-            } else {
-                if (value.equalsIgnoreCase("null")) return null;
-
-                InlineValue<?> inlineMatched = new StringValue();
+                InlineValue<?> inlineMatched = ValueRegistry.REGISTRY.getInline(String.class).orElseThrow();
 
                 for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
-                    if (inline.equals(new StringValue())) continue;
+                    if (inline.equals(ValueRegistry.REGISTRY.getInline(String.class).orElseThrow())) continue;
 
                     if (inline.matches(value)) {
                         inlineMatched = inline;
@@ -272,7 +201,7 @@ public class YAMLFormat implements FileFormat {
                 }
 
                 final Object o = inlineMatched.deserialize(value);
-                if (o == null) return null;
+                if (o == null) return Optional.empty();
 
                 final ScalarNode<?> node = new ScalarNode<>() {
                     @Override
@@ -286,12 +215,72 @@ public class YAMLFormat implements FileFormat {
                     }
                 };
 
-                node.getComments().addAll(tempComments);
-                tempComments.clear();
+                node.getComments().addAll(context.getComments());
+                context.clearComments();
 
-                return node;
+                context.getParent().getChildren().add(node);
+                return Optional.empty();
             }
         }
+
+        if (line.getText().startsWith("-")) {
+            final String keyFound = reader.read(line.getPosition() - 1).trim().split(":")[0].trim();
+            final List<Object> list = new ArrayList<>();
+
+            for (int position = line.getPosition(); position < reader.getLines().size(); position++) {
+                final String listItemLine = reader.read(position).trim();
+                if (!listItemLine.startsWith("-")) break;
+
+                final String value = listItemLine.substring(1).trim();
+                InlineValue<?> inlineMatched = ValueRegistry.REGISTRY.getInline(String.class).orElseThrow();
+
+                for (final InlineValue<?> inline : ValueRegistry.REGISTRY.getInlineRegistry().values()) {
+                    if (inline.equals(ValueRegistry.REGISTRY.getInline(String.class).orElseThrow())) continue;
+                    if (inline.matches(value)) {
+                        inlineMatched = inline;
+                        break;
+                    }
+                }
+
+                if (inlineMatched.matches(value)) {
+                    list.add(inlineMatched.deserialize(value));
+                }
+
+                processedLines.add(position);
+            }
+
+            final ScalarNode<?> node = new ScalarNode<>() {
+                @Override
+                public @NotNull String getKey() {
+                    return keyFound;
+                }
+
+                @Override
+                public @NotNull Object getValue() {
+                    return List.copyOf(list);
+                }
+            };
+
+            node.getComments().addAll(context.getComments());
+            context.clearComments();
+            context.getParent().getChildren().add(node);
+
+            return Optional.empty();
+        }
+
+        return Optional.of(ErrorContext.create(line, inscript, "Invalid YAML syntax"));
+    }
+
+    @NotNull
+    @Override
+    public String save(final @NotNull ConfigSection root) {
+        final InscriptStringWriter writer = InscriptStringWriter.newWriter();
+
+        for (final ConfigNode node : root.getChildren()) {
+            writeNode(writer, node, 0);
+        }
+
+        return writer.build();
     }
 
     @ApiStatus.Internal
@@ -318,8 +307,6 @@ public class YAMLFormat implements FileFormat {
             for (final ConfigNode child : section.getChildren()) {
                 writeNode(writer, child, depth + 1);
             }
-
-            writer.write("\n");
         } else if (node instanceof ScalarNode<?> scalar) {
             for (final String comment : scalar.getComments()) {
                 writer.write(indent + "# " + comment);
@@ -359,8 +346,13 @@ public class YAMLFormat implements FileFormat {
 
                 writer.write(indent + key + ": " + value.serialize(objectValue) + "\n");
             }
-        } else {
-            throw new InscriptException("Found unsupported ConfigNode: " + node.getClass().getSimpleName());
         }
+    }
+
+    @NotNull
+    @Override
+    @Unmodifiable
+    public Collection<String> getValidFileExtensions() {
+        return List.of("yaml", "yml");
     }
 }
