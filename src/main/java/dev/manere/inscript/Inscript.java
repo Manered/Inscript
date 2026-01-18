@@ -34,7 +34,7 @@ public class Inscript {
         for (final FileFormat format : FileFormats.FORMATS) {
             final Collection<String> extensions = format.getValidFileExtensions();
             for (final String extension : extensions) {
-                if (file.endsWith("." + extension)) {
+                if (file.toString().endsWith("." + extension)) {
                     return new Inscript(source, format);
                 }
             }
@@ -59,6 +59,11 @@ public class Inscript {
     @CanIgnoreReturnValue
     public static Inscript newInscript(final @NotNull FileFormat format) {
         return new Inscript(null, format);
+    }
+
+    @NotNull
+    public static Builder builder() {
+        return new Builder();
     }
 
     @NotNull
@@ -134,6 +139,28 @@ public class Inscript {
             }
         } catch (final Exception e) {
             throw new InscriptException(e);
+        }
+    }
+
+    public static class Builder {
+        private Path path;
+        private FileFormat format;
+
+        public Builder path(Path path) {
+            this.path = path;
+            return this;
+        }
+
+        public Builder format(FileFormat format) {
+            this.format = format;
+            return this;
+        }
+
+        public Inscript build() {
+            if (format == null) {
+                throw new InscriptException("Format must be specified");
+            }
+            return new Inscript(path, format);
         }
     }
 }

@@ -44,6 +44,17 @@ public interface ConfigSection {
 
     @NotNull
     default Optional<ConfigNode> getNode(final @NotNull String key) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return Optional.empty();
+                current = next.get();
+            }
+            return current.getNode(parts[parts.length - 1]);
+        }
+
         for (final ConfigNode node : getChildren()) if (node.getKey().equals(key)) return Optional.of(node);
         return Optional.empty();
     }
@@ -68,6 +79,16 @@ public interface ConfigSection {
     @NotNull
     @CanIgnoreReturnValue
     default ConfigSection section(final @NotNull String key, final @NotNull Consumer<ConfigSection> handler) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (String part : parts) {
+                current = current.getSection(part).orElse(current.createSection(part));
+            }
+            handler.accept(current);
+            return this;
+        }
+
         handler.accept(getSection(key).orElse(createSection(key)));
         return this;
     }
@@ -93,6 +114,18 @@ public interface ConfigSection {
     @NotNull
     @CanIgnoreReturnValue
     default ConfigSection unset(final @NotNull String key) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return this;
+                current = next.get();
+            }
+            current.unset(parts[parts.length - 1]);
+            return this;
+        }
+
         getNode(key).ifPresent(node -> getSection().getChildren().remove(node));
         return this;
     }
@@ -141,6 +174,18 @@ public interface ConfigSection {
     @NotNull
     @CanIgnoreReturnValue
     default ConfigSection comment(final @NotNull String key, final @NotNull Collection<? extends String> comments) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return this;
+                current = next.get();
+            }
+            current.comment(parts[parts.length - 1], comments);
+            return this;
+        }
+
         getNode(key).ifPresent(node -> {
             node.getComments().clear();
             node.getComments().addAll(comments);
@@ -151,6 +196,17 @@ public interface ConfigSection {
 
     @NotNull
     default Collection<String> getComments(final @NotNull String key) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return Set.of();
+                current = next.get();
+            }
+            return current.getComments(parts[parts.length - 1]);
+        }
+
         final ConfigNode node = getNode(key).orElse(null);
         if (node == null) return Set.of();
 
@@ -161,6 +217,55 @@ public interface ConfigSection {
     @CanIgnoreReturnValue
     default ConfigSection comment(final @NotNull String key, final @NotNull String @NotNull ... comments) {
         return comment(key, Arrays.asList(comments));
+    }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default ConfigSection inlineComment(final @NotNull String key, final @NotNull Collection<? extends String> comments) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return this;
+                current = next.get();
+            }
+            current.inlineComment(parts[parts.length - 1], comments);
+            return this;
+        }
+
+        getNode(key).ifPresent(node -> {
+            node.getInlineComments().clear();
+            node.getInlineComments().addAll(comments);
+        });
+
+        return this;
+    }
+
+    @NotNull
+    @CanIgnoreReturnValue
+    default ConfigSection inlineComment(final @NotNull String key, final @NotNull String @NotNull ... comments) {
+        return inlineComment(key, Arrays.asList(comments));
+    }
+
+    @NotNull
+    @Unmodifiable
+    default Collection<String> getInlineComments(final @NotNull String key) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return Set.of();
+                current = next.get();
+            }
+            return current.getInlineComments(parts[parts.length - 1]);
+        }
+
+        final ConfigNode node = getNode(key).orElse(null);
+        if (node == null) return Set.of();
+
+        return Set.copyOf(node.getInlineComments());
     }
 
     @NotNull

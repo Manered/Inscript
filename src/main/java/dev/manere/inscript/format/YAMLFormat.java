@@ -54,19 +54,30 @@ public class YAMLFormat implements FileFormat {
             return Optional.of(ErrorContext.create(line, inscript, "Invalid indentation, expected '" + indent + "' but found '" + actualIndent + "'"));
         }
 
-        if (line.getText().startsWith("#")) {
-            context.addComments(line.getText().substring("#".length()).trim());
+        if (line.getText().trim().startsWith("#")) {
+            context.addComments(line.getText().trim().substring("#".length()).trim());
             return Optional.empty();
         }
 
-        line.editText(String::trim);
+        String lineText = line.getText().trim();
+        String inlineComment = null;
+        if (lineText.contains("#")) {
+            // Check if # is inside a string or not. Simple check for now.
+            // Assuming # as comment start if it's preceded by space or is at start (handled above)
+            int commentIndex = lineText.indexOf(" #");
+            if (commentIndex != -1) {
+                inlineComment = lineText.substring(commentIndex + 2).trim();
+                lineText = lineText.substring(0, commentIndex).trim();
+                line.setText(lineText); // Update line text for further processing without comment
+            }
+        }
 
-        if (line.getText().equals("---") || line.getText().equals("...")) {
+        if (lineText.equals("---") || lineText.equals("...")) {
             return Optional.empty();
         }
 
-        if (line.getText().contains(":")) {
-            final String[] parts = line.getText().split(":", 2);
+        if (lineText.contains(":")) {
+            final String[] parts = lineText.split(":", 2);
             final String key = parts[0].trim();
 
             if (parts.length > 1) {
@@ -90,6 +101,7 @@ public class YAMLFormat implements FileFormat {
                     };
 
                     section.getComments().addAll(context.getComments());
+                    if (inlineComment != null) section.getInlineComments().add(inlineComment);
                     context.clearComments();
 
                     for (int position = line.getPosition() + 1; position < reader.getLines().size(); position++) {
@@ -132,6 +144,7 @@ public class YAMLFormat implements FileFormat {
                     };
 
                     node.getComments().addAll(context.getComments());
+                    if (inlineComment != null) node.getInlineComments().add(inlineComment);
                     context.clearComments();
 
                     context.getParent().getChildren().add(node);
@@ -180,6 +193,7 @@ public class YAMLFormat implements FileFormat {
                     };
 
                     node.getComments().addAll(context.getComments());
+                    if (inlineComment != null) node.getInlineComments().add(inlineComment);
                     context.clearComments();
 
                     context.getParent().getChildren().add(node);
@@ -216,6 +230,7 @@ public class YAMLFormat implements FileFormat {
                 };
 
                 node.getComments().addAll(context.getComments());
+                if (inlineComment != null) node.getInlineComments().add(inlineComment);
                 context.clearComments();
 
                 context.getParent().getChildren().add(node);
@@ -223,7 +238,7 @@ public class YAMLFormat implements FileFormat {
             }
         }
 
-        if (line.getText().startsWith("-")) {
+        if (lineText.startsWith("-")) {
             final String keyFound = reader.read(line.getPosition() - 1).trim().split(":")[0].trim();
             final List<Object> list = new ArrayList<>();
 
@@ -262,6 +277,7 @@ public class YAMLFormat implements FileFormat {
             };
 
             node.getComments().addAll(context.getComments());
+            if (inlineComment != null) node.getInlineComments().add(inlineComment);
             context.clearComments();
             context.getParent().getChildren().add(node);
 
@@ -298,11 +314,19 @@ public class YAMLFormat implements FileFormat {
             }
 
             if (section.getChildren().isEmpty()) {
-                writer.write(indent + key + ":\n" + InscriptConstants.INDENT.getValue().apply(1) + "\n");
+                writer.write(indent + key + ":");
+                if (!section.getInlineComments().isEmpty()) {
+                    writer.write(" # " + String.join(" ", section.getInlineComments()));
+                }
+                writer.write("\n" + InscriptConstants.INDENT.getValue().apply(1) + "\n");
                 return;
             }
 
-            writer.write(indent + key + ":\n");
+            writer.write(indent + key + ":");
+            if (!section.getInlineComments().isEmpty()) {
+                writer.write(" # " + String.join(" ", section.getInlineComments()));
+            }
+            writer.write("\n");
 
             for (final ConfigNode child : section.getChildren()) {
                 writeNode(writer, child, depth + 1);
@@ -319,9 +343,15 @@ public class YAMLFormat implements FileFormat {
             if (objectValue instanceof List<?> list) {
                 if (list.isEmpty()) {
                     writer.write(indent + key + ": []");
+                    if (!scalar.getInlineComments().isEmpty()) {
+                        writer.write(" # " + String.join(" ", scalar.getInlineComments()));
+                    }
                     writer.newline();
                 } else {
                     writer.write(indent + key + ":");
+                    if (!scalar.getInlineComments().isEmpty()) {
+                        writer.write(" # " + String.join(" ", scalar.getInlineComments()));
+                    }
                     writer.newLine();
 
                     for (final Object element : list) {
@@ -340,11 +370,15 @@ public class YAMLFormat implements FileFormat {
                 final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(type).orElse(null);
 
                 if (value == null) {
-                    writer.write(indent + key + ": " + objectValue + "\n");
-                    return;
+                    writer.write(indent + key + ": " + objectValue);
+                } else {
+                    writer.write(indent + key + ": " + value.serialize(objectValue));
                 }
-
-                writer.write(indent + key + ": " + value.serialize(objectValue) + "\n");
+                
+                if (!scalar.getInlineComments().isEmpty()) {
+                    writer.write(" # " + String.join(" ", scalar.getInlineComments()));
+                }
+                writer.write("\n");
             }
         }
     }

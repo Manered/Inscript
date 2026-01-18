@@ -72,18 +72,27 @@ public class DataScriptFormat implements FileFormat {
             return Optional.of(ErrorContext.create(line, inscript, "Invalid indentation, expected '" + indent + "' but found '" + actualIndent + "'"));
         }
 
-        if (line.getText().startsWith("//")) {
-            context.addComments(line.getText().substring("//".length()).trim());
+        if (line.getText().trim().startsWith("//")) {
+            context.addComments(line.getText().trim().substring("//".length()).trim());
             return Optional.empty();
         }
 
-        line.editText(String::trim);
+        String lineText = line.getText().trim();
+        String inlineComment = null;
+        if (lineText.contains("//")) {
+            int commentIndex = lineText.indexOf(" //");
+            if (commentIndex != -1) {
+                inlineComment = lineText.substring(commentIndex + 3).trim();
+                lineText = lineText.substring(0, commentIndex).trim();
+                line.setText(lineText);
+            }
+        }
 
-        if (line.getText().equals("...")) {
+        if (lineText.equals("...")) {
             return Optional.empty();
         }
 
-        final String[] parts = line.getText().split("=");
+        final String[] parts = lineText.split("=");
         final String name = parts[0].trim();
 
         final String key = name
@@ -92,7 +101,7 @@ public class DataScriptFormat implements FileFormat {
             .trim();
 
         if (parts.length == 1) {
-            if (line.getText().endsWith("{")) {
+            if (lineText.endsWith("{")) {
                 final SectionNode section = new SectionNode() {
                     private final Set<ConfigNode> nodes = new LinkedHashSet<>();
 
@@ -110,6 +119,7 @@ public class DataScriptFormat implements FileFormat {
                 };
 
                 section.getComments().addAll(context.getComments());
+                if (inlineComment != null) section.getInlineComments().add(inlineComment);
                 context.clearComments();
 
                 int nestedDepth = 1;
@@ -132,7 +142,7 @@ public class DataScriptFormat implements FileFormat {
 
                 context.getParent().getChildren().add(section);
                 return Optional.empty();
-            } else if (line.getText().replaceAll(" ", "").endsWith("{}")) {
+            } else if (lineText.replaceAll(" ", "").endsWith("{}")) {
                 final SectionNode section = new SectionNode() {
                     private final Set<ConfigNode> nodes = new LinkedHashSet<>();
 
@@ -150,6 +160,7 @@ public class DataScriptFormat implements FileFormat {
                 };
 
                 section.getComments().addAll(context.getComments());
+                if (inlineComment != null) section.getInlineComments().add(inlineComment);
                 context.clearComments();
 
                 context.getParent().getChildren().add(section);
@@ -175,6 +186,7 @@ public class DataScriptFormat implements FileFormat {
                 };
 
                 node.getComments().addAll(context.getComments());
+                if (inlineComment != null) node.getInlineComments().add(inlineComment);
                 context.clearComments();
 
                 context.getParent().getChildren().add(node);
@@ -235,6 +247,7 @@ public class DataScriptFormat implements FileFormat {
                 };
 
                 node.getComments().addAll(context.getComments());
+                if (inlineComment != null) node.getInlineComments().add(inlineComment);
                 context.clearComments();
 
                 context.getParent().getChildren().add(node);
@@ -273,6 +286,7 @@ public class DataScriptFormat implements FileFormat {
 
 
             node.getComments().addAll(context.getComments());
+            if (inlineComment != null) node.getInlineComments().add(inlineComment);
             context.clearComments();
 
             context.getParent().getChildren().add(node);
@@ -297,11 +311,18 @@ public class DataScriptFormat implements FileFormat {
 
             if (section.getChildren().isEmpty()) {
                 writer.write(indent + key + " {}");
+                if (!section.getInlineComments().isEmpty()) {
+                    writer.write(" // " + String.join(" ", section.getInlineComments()));
+                }
                 writer.newline();
                 return;
             }
 
-            writer.write(indent + key + " {\n");
+            writer.write(indent + key + " {");
+            if (!section.getInlineComments().isEmpty()) {
+                writer.write(" // " + String.join(" ", section.getInlineComments()));
+            }
+            writer.write("\n");
 
             for (final ConfigNode child : section.getChildren()) {
                 writeNode(writer, child, depth + 1);
@@ -320,9 +341,15 @@ public class DataScriptFormat implements FileFormat {
             if (objectValue instanceof List<?> list) {
                 if (list.isEmpty()) {
                     writer.write(indent + key + " = []");
+                    if (!scalar.getInlineComments().isEmpty()) {
+                        writer.write(" // " + String.join(" ", scalar.getInlineComments()));
+                    }
                     writer.newLine();
                 } else {
                     writer.write(indent + key + " = [");
+                    if (!scalar.getInlineComments().isEmpty()) {
+                        writer.write(" // " + String.join(" ", scalar.getInlineComments()));
+                    }
                     writer.newline();
 
                     for (int i = 0; i < list.size(); i++) {
@@ -352,11 +379,15 @@ public class DataScriptFormat implements FileFormat {
                 final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(type).orElse(null);
 
                 if (value == null) {
-                    writer.write(indent + key + " = " + objectValue + "\n");
-                    return;
+                    writer.write(indent + key + " = " + objectValue);
+                } else {
+                    writer.write(indent + key + " = " + value.serialize(objectValue));
                 }
 
-                writer.write(indent + key + " = " + value.serialize(objectValue) + "\n");
+                if (!scalar.getInlineComments().isEmpty()) {
+                    writer.write(" // " + String.join(" ", scalar.getInlineComments()));
+                }
+                writer.write("\n");
             }
         }
     }

@@ -9,7 +9,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements ConfigSection {
     @Override
@@ -19,12 +18,32 @@ public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements C
 
     @Override
     public @NotNull Optional<ConfigSection> getSection(final @NotNull String key) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (String part : parts) {
+                Optional<ConfigSection> next = current.getSection(part);
+                if (next.isEmpty()) return Optional.empty();
+                current = next.get();
+            }
+            return Optional.of(current);
+        }
+
         final ConfigNode node = getNode(key).orElse(null);
         return !(node instanceof SectionNode childSection) ? Optional.empty() : Optional.of(new SimpleConfigSection(childSection));
     }
 
     @Override
     public @NotNull ConfigSection createSection(final @NotNull String key) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (String part : parts) {
+                current = current.getSection(part).orElse(current.createSection(part));
+            }
+            return current;
+        }
+
         if (key.equalsIgnoreCase(InscriptConstants.ROOT_SECTION_KEY.getValue())) throw new IllegalArgumentException("Illegal attempt to create a root section.");
 
         final Optional<ConfigSection> sectionFound = getSection(key);
@@ -50,6 +69,17 @@ public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements C
 
     @Override
     public @NotNull <T> Optional<T> get(final @NotNull String key, final @NotNull Class<? extends T> ignoredType) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return Optional.empty();
+                current = next.get();
+            }
+            return current.get(parts[parts.length - 1], ignoredType);
+        }
+
         final ConfigNode node = getNode(key).orElse(null);
         if (node == null) return Optional.empty();
 
@@ -75,6 +105,17 @@ public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements C
 
     @Override
     public @NotNull <T> List<T> getList(final @NotNull String key, final @NotNull Class<? extends T> ignoredType) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                Optional<ConfigSection> next = current.getSection(parts[i]);
+                if (next.isEmpty()) return Collections.synchronizedList(new ArrayList<>());
+                current = next.get();
+            }
+            return current.getList(parts[parts.length - 1], ignoredType);
+        }
+
         final ConfigNode node = getNode(key).orElse(null);
         if (node == null) return Collections.synchronizedList(new ArrayList<>());
         if (!(node instanceof ScalarNode<?> scalar)) return Collections.synchronizedList(new ArrayList<>());
@@ -88,6 +129,16 @@ public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements C
 
     @Override
     public @NotNull <T> ConfigSection set(final @NotNull String key, final @Nullable T value) {
+        if (key.contains(".")) {
+            String[] parts = key.split("\\.");
+            ConfigSection current = this;
+            for (int i = 0; i < parts.length - 1; i++) {
+                current = current.getSection(parts[i]).orElse(current.createSection(parts[i]));
+            }
+            current.set(parts[parts.length - 1], value);
+            return this;
+        }
+
         unset(key);
         if (value == null) return this;
 

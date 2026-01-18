@@ -31,4 +31,8 @@ public class Line {
     public String toString() {
         return "Line " + (getPosition() + 1) + ": \n" + getText();
     }
+
+    public void setText(final @NotNull String text) {
+        this.text = text;
+    }
 }
