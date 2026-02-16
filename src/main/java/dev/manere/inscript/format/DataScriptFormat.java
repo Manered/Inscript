@@ -355,7 +355,7 @@ public class DataScriptFormat implements FileFormat {
                     for (int i = 0; i < list.size(); i++) {
                         final Object element = list.get(i);
 
-                        final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(element.getClass()).orElse(null);
+                        final InlineValue<Object> value = ValueRegistry.REGISTRY.getInline(element.getClass()).orElse(null);
 
                         if (value == null) {
                             writer.write(indent + InscriptConstants.INDENT.getValue().apply(1) + element);
@@ -370,13 +370,12 @@ public class DataScriptFormat implements FileFormat {
                         }
 
                         writer.newLine();
-                        break;
                     }
 
                     writer.write(indent + "]\n");
                 }
             } else {
-                final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(type).orElse(null);
+                final InlineValue<Object> value = ValueRegistry.REGISTRY.getInline(type).orElse(null);
 
                 if (value == null) {
                     writer.write(indent + key + " = " + objectValue);

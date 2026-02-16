@@ -35,27 +35,19 @@ public class ValueRegistry {
     private final Map<Class<?>, InscriptValue<?>> inscriptRegistry = new LinkedHashMap<>();
 
     @NotNull
-    public <T> Optional<InlineValue<T>> getInline(final @NotNull Class<? extends T> ignoredKey) {
-        final InlineValue<?> raw = inlineRegistry.get(ignoredKey);
+    @SuppressWarnings("unchecked")
+    public <T> Optional<InlineValue<T>> getInline(final @NotNull Class<?> key) {
+        final InlineValue<?> raw = inlineRegistry.get(key);
         if (raw == null) return Optional.empty();
-
-        try {
-            return Optional.of((InlineValue<T>) raw);
-        } catch (final Exception e) {
-            return Optional.empty();
-        }
+        return Optional.of((InlineValue<T>) raw);
     }
 
     @NotNull
-    public <T> Optional<InscriptValue<T>> getInscript(final @NotNull Class<? extends T> ignoredKey) {
-        final InscriptValue<?> raw = inscriptRegistry.get(ignoredKey);
+    @SuppressWarnings("unchecked")
+    public <T> Optional<InscriptValue<T>> getInscript(final @NotNull Class<?> key) {
+        final InscriptValue<?> raw = inscriptRegistry.get(key);
         if (raw == null) return Optional.empty();
-
-        try {
-            return Optional.of((InscriptValue<T>) raw);
-        } catch (final Exception e) {
-            return Optional.empty();
-        }
+        return Optional.of((InscriptValue<T>) raw);
     }
 
     @NotNull

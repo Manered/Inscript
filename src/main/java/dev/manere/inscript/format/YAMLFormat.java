@@ -355,7 +355,7 @@ public class YAMLFormat implements FileFormat {
                     writer.newLine();
 
                     for (final Object element : list) {
-                        final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(element.getClass()).orElse(null);
+                        final InlineValue<Object> value = ValueRegistry.REGISTRY.getInline(element.getClass()).orElse(null);
 
                         if (value == null) {
                             writer.write(indent + InscriptConstants.INDENT.getValue().apply(1) + "- " + element);
@@ -367,7 +367,7 @@ public class YAMLFormat implements FileFormat {
                     }
                 }
             } else {
-                final InlineValue<Object> value = ValueRegistry.REGISTRY.<Object>getInline(type).orElse(null);
+                final InlineValue<Object> value = ValueRegistry.REGISTRY.getInline(type).orElse(null);
 
                 if (value == null) {
                     writer.write(indent + key + ": " + objectValue);
