@@ -131,11 +131,11 @@ public record SimpleConfigSection(@NotNull SectionNode sectionNode) implements C
     public @NotNull <T> ConfigSection set(final @NotNull String key, final @Nullable T value) {
         if (key.contains(".")) {
             String[] parts = key.split("\\.");
-            ConfigSection current = this;
+            ConfigSection parent = this;
             for (int i = 0; i < parts.length - 1; i++) {
-                current = current.getSection(parts[i]).orElse(current.createSection(parts[i]));
+                parent = parent.getSection(parts[i]).orElse(parent.createSection(parts[i]));
             }
-            current.set(parts[parts.length - 1], value);
+            parent.set(parts[parts.length - 1], value);
             return this;
         }
 
