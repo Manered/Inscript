@@ -62,13 +62,11 @@ public class YAMLFormat implements FileFormat {
         String lineText = line.getText().trim();
         String inlineComment = null;
         if (lineText.contains("#")) {
-            // Check if # is inside a string or not. Simple check for now.
-            // Assuming # as comment start if it's preceded by space or is at start (handled above)
             int commentIndex = lineText.indexOf(" #");
             if (commentIndex != -1) {
                 inlineComment = lineText.substring(commentIndex + 2).trim();
                 lineText = lineText.substring(0, commentIndex).trim();
-                line.setText(lineText); // Update line text for further processing without comment
+                line.setText(lineText);
             }
         }
 
@@ -83,7 +81,7 @@ public class YAMLFormat implements FileFormat {
             if (parts.length > 1) {
                 String value = parts[1].trim();
 
-                if (value.isBlank() && !reader.read(line.getPosition() + 1).trim().startsWith("-")) {
+                if (value.isBlank() && isNextLineIndented(reader, line.getPosition() + 1, actualIndent.length())) {
                     final SectionNode section = new SectionNode() {
                         private final Set<ConfigNode> nodes = new LinkedHashSet<>();
 
@@ -201,7 +199,6 @@ public class YAMLFormat implements FileFormat {
                 }
 
                 if (value.equalsIgnoreCase("Null")) return Optional.empty();
-                if (value.isBlank() || reader.read(line.getPosition() + 1).trim().startsWith("-")) return Optional.empty();
 
                 InlineValue<?> inlineMatched = ValueRegistry.REGISTRY.getInline(String.class).orElseThrow();
 
@@ -215,6 +212,7 @@ public class YAMLFormat implements FileFormat {
                 }
 
                 final Object o = inlineMatched.deserialize(value);
+
                 if (o == null) return Optional.empty();
 
                 final ScalarNode<?> node = new ScalarNode<>() {
@@ -318,7 +316,7 @@ public class YAMLFormat implements FileFormat {
                 if (!section.getInlineComments().isEmpty()) {
                     writer.write(" # " + String.join(" ", section.getInlineComments()));
                 }
-                writer.write("\n" + InscriptConstants.INDENT.getValue().apply(1) + "\n");
+                writer.write("\n");
                 return;
             }
 
@@ -381,6 +379,18 @@ public class YAMLFormat implements FileFormat {
                 writer.write("\n");
             }
         }
+    }
+
+    private boolean isNextLineIndented(final @NotNull InscriptReader reader, int nextLinePosition, int currentIndentLength) {
+        if (nextLinePosition >= reader.getLines().size()) {
+            return false;
+        }
+        final String nextLine = reader.read(nextLinePosition);
+        if (nextLine.isBlank()) {
+            return false;
+        }
+        final String nextLineIndent = nextLine.substring(0, nextLine.length() - nextLine.trim().length());
+        return nextLineIndent.length() > currentIndentLength;
     }
 
     @NotNull
